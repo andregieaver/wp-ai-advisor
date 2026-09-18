@@ -21,16 +21,37 @@ class WP_AI_Advisor_Settings {
 	 */
 	public static function defaults() {
 		return array(
-			'api_key'           => '',
-			'model'             => 'claude-opus-5',
-			'effort'            => 'medium',
-			'max_tokens'        => 4096,
-			'system_prompt'     => '',
-			'context_post_type' => array( 'post', 'page' ),
-			'context_limit'     => 5,
-			'require_login'     => false,
-			'rate_limit'        => 10,
-			'greeting'          => '',
+			// API.
+			'api_key'          => '',
+			'model'            => 'gpt-4o-mini',
+			'embedding_model'  => 'text-embedding-3-small',
+			'temperature'      => 0.2,
+			'max_tokens'       => 800,
+
+			// Knowledge base.
+			'site_url'         => '',
+			'crawl_max_pages'  => 100,
+			'crawl_exclude'    => "/wp-admin/\n/cart/\n/checkout/\n/my-account/",
+			'top_k'            => 6,
+			'min_score'        => 0.20,
+
+			// Grounding.
+			'strict_mode'      => true,
+			'refusal_message'  => '',
+			'system_prompt'    => '',
+
+			// Access.
+			'admin_only'       => false,
+			'rate_limit'       => 20,
+
+			// Appearance.
+			'eyebrow'          => '',
+			'heading'          => '',
+			'placeholder'      => '',
+			'suggestions'      => array(),
+			'cta_label'        => '',
+			'cta_url'          => '',
+			'accent'           => '#ffffff',
 		);
 	}
 
@@ -63,9 +84,17 @@ class WP_AI_Advisor_Settings {
 	}
 
 	/**
-	 * The API key, preferring a wp-config.php constant over the stored option.
+	 * Updates a subset of settings.
 	 *
-	 * Defining WP_AI_ADVISOR_API_KEY keeps the key out of the database entirely.
+	 * @param array $values Values to merge in.
+	 * @return void
+	 */
+	public static function update( array $values ) {
+		update_option( self::OPTION_KEY, array_merge( self::all(), $values ) );
+	}
+
+	/**
+	 * The OpenAI API key, preferring a wp-config.php constant over the stored option.
 	 *
 	 * @return string
 	 */
@@ -87,6 +116,56 @@ class WP_AI_Advisor_Settings {
 	}
 
 	/**
+	 * Base URL the crawler starts from.
+	 *
+	 * @return string
+	 */
+	public static function site_url() {
+		$url = trim( (string) self::get( 'site_url', '' ) );
+
+		return $url ? untrailingslashit( $url ) : untrailingslashit( home_url() );
+	}
+
+	/**
+	 * Suggested questions shown on the collapsed card.
+	 *
+	 * @return string[]
+	 */
+	public static function suggestions() {
+		$suggestions = (array) self::get( 'suggestions', array() );
+		$suggestions = array_values( array_filter( array_map( 'trim', $suggestions ) ) );
+
+		if ( empty( $suggestions ) ) {
+			$suggestions = array(
+				__( 'What do you offer?', 'wp-ai-advisor' ),
+				__( 'Where can I find you?', 'wp-ai-advisor' ),
+				__( 'What are your opening hours?', 'wp-ai-advisor' ),
+			);
+		}
+
+		return array_slice( $suggestions, 0, 6 );
+	}
+
+	/**
+	 * Message returned when a question falls outside the knowledge base.
+	 *
+	 * @return string
+	 */
+	public static function refusal_message() {
+		$message = trim( (string) self::get( 'refusal_message', '' ) );
+
+		if ( '' === $message ) {
+			$message = sprintf(
+				/* translators: %s: site name. */
+				__( 'I can only answer questions about %s, and I could not find anything on that. Try asking about something else on the site.', 'wp-ai-advisor' ),
+				get_bloginfo( 'name' )
+			);
+		}
+
+		return $message;
+	}
+
+	/**
 	 * The system prompt sent with every request.
 	 *
 	 * @return string
@@ -96,18 +175,35 @@ class WP_AI_Advisor_Settings {
 
 		if ( '' === $prompt ) {
 			$prompt = sprintf(
-				/* translators: %s: site name. */
-				__( 'You are a helpful advisor for the website "%s". Answer questions using the provided site content. If the content does not cover the question, say so plainly and suggest what the visitor could look at instead. Keep answers short and concrete. Never invent prices, dates, or contact details.', 'wp-ai-advisor' ),
-				get_bloginfo( 'name' )
+				/* translators: 1: site name, 2: site URL. */
+				__( 'You are the assistant for %1$s (%2$s). Answer visitor questions using only the supplied site excerpts. Be brief, concrete and friendly, and answer in the language the visitor writes in.', 'wp-ai-advisor' ),
+				get_bloginfo( 'name' ),
+				self::site_url()
 			);
 		}
 
 		/**
-		 * Filters the system prompt sent to Claude.
+		 * Filters the system prompt sent to the model.
 		 *
 		 * @param string $prompt The system prompt.
 		 */
 		return (string) apply_filters( 'wp_ai_advisor_system_prompt', $prompt );
+	}
+
+	/**
+	 * Whether the widget should render for the current visitor.
+	 *
+	 * @return bool
+	 */
+	public static function is_visible() {
+		$visible = ! self::get( 'admin_only' ) || current_user_can( 'manage_options' );
+
+		/**
+		 * Filters whether the advisor widget renders.
+		 *
+		 * @param bool $visible Whether to render.
+		 */
+		return (bool) apply_filters( 'wp_ai_advisor_is_visible', $visible );
 	}
 
 	/**
@@ -119,43 +215,99 @@ class WP_AI_Advisor_Settings {
 	public static function sanitize( $input ) {
 		$defaults = self::defaults();
 		$existing = self::all();
-		$output   = array();
+		$output   = $existing;
 
 		$input = is_array( $input ) ? $input : array();
 
-		// Keep the stored key when the field is left blank or is managed by a constant.
-		if ( self::api_key_is_constant() ) {
-			$output['api_key'] = $existing['api_key'];
-		} else {
-			$submitted_key     = isset( $input['api_key'] ) ? trim( sanitize_text_field( $input['api_key'] ) ) : '';
-			$output['api_key'] = '' === $submitted_key ? $existing['api_key'] : $submitted_key;
+		// The key field is write-only: blank means "keep what is stored".
+		if ( ! self::api_key_is_constant() && isset( $input['api_key'] ) ) {
+			$submitted = trim( sanitize_text_field( $input['api_key'] ) );
+
+			if ( '' !== $submitted ) {
+				$output['api_key'] = $submitted;
+			}
 		}
 
-		$allowed_models   = array( 'claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5' );
-		$model            = isset( $input['model'] ) ? sanitize_text_field( $input['model'] ) : '';
-		$output['model']  = in_array( $model, $allowed_models, true ) ? $model : $defaults['model'];
+		if ( isset( $input['model'] ) ) {
+			$model            = sanitize_text_field( $input['model'] );
+			$output['model']  = '' !== $model ? $model : $defaults['model'];
+		}
 
-		$allowed_effort  = array( 'low', 'medium', 'high', 'xhigh', 'max' );
-		$effort          = isset( $input['effort'] ) ? sanitize_text_field( $input['effort'] ) : '';
-		$output['effort'] = in_array( $effort, $allowed_effort, true ) ? $effort : $defaults['effort'];
+		if ( isset( $input['embedding_model'] ) ) {
+			$embedding                 = sanitize_text_field( $input['embedding_model'] );
+			$output['embedding_model'] = '' !== $embedding ? $embedding : $defaults['embedding_model'];
+		}
 
-		$max_tokens             = isset( $input['max_tokens'] ) ? absint( $input['max_tokens'] ) : $defaults['max_tokens'];
-		$output['max_tokens']   = max( 256, min( 16000, $max_tokens ) );
+		if ( isset( $input['temperature'] ) ) {
+			$output['temperature'] = (float) max( 0, min( 2, (float) $input['temperature'] ) );
+		}
 
-		$output['system_prompt'] = isset( $input['system_prompt'] ) ? sanitize_textarea_field( $input['system_prompt'] ) : '';
-		$output['greeting']      = isset( $input['greeting'] ) ? sanitize_text_field( $input['greeting'] ) : '';
+		if ( isset( $input['max_tokens'] ) ) {
+			$output['max_tokens'] = max( 128, min( 4000, absint( $input['max_tokens'] ) ) );
+		}
 
-		$post_types = isset( $input['context_post_type'] ) ? (array) $input['context_post_type'] : array();
-		$post_types = array_values( array_intersect( array_map( 'sanitize_key', $post_types ), get_post_types( array( 'public' => true ) ) ) );
-		$output['context_post_type'] = empty( $post_types ) ? $defaults['context_post_type'] : $post_types;
+		if ( isset( $input['site_url'] ) ) {
+			$url                = esc_url_raw( trim( $input['site_url'] ) );
+			$output['site_url'] = $url ? untrailingslashit( $url ) : '';
+		}
 
-		$context_limit           = isset( $input['context_limit'] ) ? absint( $input['context_limit'] ) : $defaults['context_limit'];
-		$output['context_limit'] = max( 0, min( 20, $context_limit ) );
+		if ( isset( $input['crawl_max_pages'] ) ) {
+			$output['crawl_max_pages'] = max( 1, min( 2000, absint( $input['crawl_max_pages'] ) ) );
+		}
 
-		$output['require_login'] = ! empty( $input['require_login'] );
+		if ( isset( $input['crawl_exclude'] ) ) {
+			$output['crawl_exclude'] = sanitize_textarea_field( $input['crawl_exclude'] );
+		}
 
-		$rate_limit           = isset( $input['rate_limit'] ) ? absint( $input['rate_limit'] ) : $defaults['rate_limit'];
-		$output['rate_limit'] = max( 0, min( 240, $rate_limit ) );
+		if ( isset( $input['top_k'] ) ) {
+			$output['top_k'] = max( 1, min( 20, absint( $input['top_k'] ) ) );
+		}
+
+		if ( isset( $input['min_score'] ) ) {
+			$output['min_score'] = (float) max( 0, min( 1, (float) $input['min_score'] ) );
+		}
+
+		// Checkboxes post nothing when unchecked, so they are only read when the
+		// form that owns them was actually submitted.
+		if ( isset( $input['_form'] ) ) {
+			$output['strict_mode'] = ! empty( $input['strict_mode'] );
+			$output['admin_only']  = ! empty( $input['admin_only'] );
+		}
+
+		if ( isset( $input['refusal_message'] ) ) {
+			$output['refusal_message'] = sanitize_textarea_field( $input['refusal_message'] );
+		}
+
+		if ( isset( $input['system_prompt'] ) ) {
+			$output['system_prompt'] = sanitize_textarea_field( $input['system_prompt'] );
+		}
+
+		if ( isset( $input['rate_limit'] ) ) {
+			$output['rate_limit'] = max( 0, min( 500, absint( $input['rate_limit'] ) ) );
+		}
+
+		foreach ( array( 'eyebrow', 'heading', 'placeholder', 'cta_label' ) as $text_field ) {
+			if ( isset( $input[ $text_field ] ) ) {
+				$output[ $text_field ] = sanitize_text_field( $input[ $text_field ] );
+			}
+		}
+
+		if ( isset( $input['cta_url'] ) ) {
+			$output['cta_url'] = esc_url_raw( trim( $input['cta_url'] ) );
+		}
+
+		if ( isset( $input['accent'] ) ) {
+			$accent           = sanitize_hex_color( $input['accent'] );
+			$output['accent'] = $accent ? $accent : $defaults['accent'];
+		}
+
+		if ( isset( $input['suggestions'] ) ) {
+			$suggestions = is_array( $input['suggestions'] ) ? $input['suggestions'] : explode( "\n", (string) $input['suggestions'] );
+			$suggestions = array_map( 'sanitize_text_field', $suggestions );
+			$suggestions = array_values( array_filter( array_map( 'trim', $suggestions ) ) );
+
+			$output['suggestions'] = array_slice( $suggestions, 0, 6 );
+		}
 
 		return $output;
 	}

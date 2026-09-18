@@ -7,7 +7,21 @@
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
-delete_option( 'wp_ai_advisor_settings' );
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-wp-ai-advisor-store.php';
+
+/**
+ * Removes this site's options and knowledge-base tables.
+ *
+ * @return void
+ */
+function wp_ai_advisor_uninstall_site() {
+	delete_option( 'wp_ai_advisor_settings' );
+	delete_option( WP_AI_Advisor_Store::DB_VERSION_KEY );
+
+	WP_AI_Advisor_Store::drop();
+}
+
+wp_ai_advisor_uninstall_site();
 
 if ( is_multisite() ) {
 	$site_ids = get_sites(
@@ -19,7 +33,7 @@ if ( is_multisite() ) {
 
 	foreach ( $site_ids as $site_id ) {
 		switch_to_blog( $site_id );
-		delete_option( 'wp_ai_advisor_settings' );
+		wp_ai_advisor_uninstall_site();
 		restore_current_blog();
 	}
 }

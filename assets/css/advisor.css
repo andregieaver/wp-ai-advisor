@@ -1,104 +1,454 @@
-/* Front-end styles for the [ai_advisor] widget. */
+/**
+ * Front-end styles for the [ai_advisor] conversation container.
+ *
+ * The widget is self-contained: every rule is scoped to .aiadv so it can drop
+ * into any theme without inheriting or leaking layout.
+ */
 
-.wp-ai-advisor {
-	border: 1px solid rgba( 0, 0, 0, 0.12 );
-	border-radius: 8px;
-	padding: 1.25rem;
-	max-width: 46rem;
+.aiadv {
+	--aiadv-accent: #ffffff;
+	--aiadv-surface: rgba( 22, 20, 18, 0.72 );
+	--aiadv-surface-soft: rgba( 255, 255, 255, 0.08 );
+	--aiadv-surface-softer: rgba( 255, 255, 255, 0.05 );
+	--aiadv-border: rgba( 255, 255, 255, 0.14 );
+	--aiadv-text: rgba( 255, 255, 255, 0.94 );
+	--aiadv-text-muted: rgba( 255, 255, 255, 0.62 );
+	--aiadv-radius: 28px;
+
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 56rem;
+	margin-inline: auto;
+	color: var( --aiadv-text );
+	font-size: 16px;
+	line-height: 1.5;
 }
 
-.wp-ai-advisor__title {
-	margin: 0 0 0.75rem;
-	font-size: 1.125rem;
+.aiadv *,
+.aiadv *::before,
+.aiadv *::after {
+	box-sizing: inherit;
 }
 
-.wp-ai-advisor__log {
-	display: flex;
-	flex-direction: column;
-	gap: 0.75rem;
-	max-height: 26rem;
-	overflow-y: auto;
-	margin-bottom: 1rem;
+.aiadv--light {
+	--aiadv-surface: rgba( 255, 255, 255, 0.78 );
+	--aiadv-surface-soft: rgba( 0, 0, 0, 0.06 );
+	--aiadv-surface-softer: rgba( 0, 0, 0, 0.04 );
+	--aiadv-border: rgba( 0, 0, 0, 0.12 );
+	--aiadv-text: rgba( 20, 18, 16, 0.92 );
+	--aiadv-text-muted: rgba( 20, 18, 16, 0.6 );
+	--aiadv-accent: #141210;
 }
 
-.wp-ai-advisor__log:empty {
-	margin-bottom: 0;
+.aiadv__card {
+	position: relative;
+	border: 1px solid var( --aiadv-border );
+	border-radius: var( --aiadv-radius );
+	background: var( --aiadv-surface );
+	backdrop-filter: blur( 22px );
+	-webkit-backdrop-filter: blur( 22px );
+	padding: clamp( 1.25rem, 3vw, 2.25rem );
+	overflow: hidden;
 }
 
-.wp-ai-advisor__message {
-	padding: 0.75rem 0.9rem;
-	border-radius: 6px;
-	background: rgba( 0, 0, 0, 0.04 );
+/* ---------------------------------------------------------------------------
+ * Collapsed state
+ * ------------------------------------------------------------------------ */
+
+.aiadv__intro {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: clamp( 1.5rem, 4vw, 2.5rem );
+	align-items: start;
 }
 
-.wp-ai-advisor__message--user {
-	background: rgba( 0, 0, 0, 0.07 );
+@media ( min-width: 48em ) {
+	.aiadv__intro {
+		grid-template-columns: minmax( 0, 1fr ) minmax( 0, 20rem );
+	}
 }
 
-.wp-ai-advisor__message.is-pending {
-	opacity: 0.65;
-}
-
-.wp-ai-advisor__role {
-	display: block;
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	opacity: 0.6;
-	margin-bottom: 0.25rem;
-}
-
-.wp-ai-advisor__text {
-	margin: 0;
-	white-space: pre-wrap;
-}
-
-.wp-ai-advisor__sources-title {
-	display: block;
-	margin-top: 0.75rem;
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	opacity: 0.6;
-}
-
-.wp-ai-advisor__sources {
-	margin: 0.25rem 0 0;
-	padding-left: 1.1rem;
-	font-size: 0.9rem;
-}
-
-.wp-ai-advisor__form {
-	display: flex;
-	gap: 0.5rem;
-	align-items: flex-end;
-}
-
-.wp-ai-advisor__input {
-	flex: 1;
-	resize: vertical;
-	min-height: 3rem;
-}
-
-.wp-ai-advisor__notice {
-	margin: 0.75rem 0 0;
-	color: #a00;
-}
-
-.wp-ai-advisor__notice[hidden] {
+.aiadv.is-open .aiadv__intro {
 	display: none;
 }
 
-@media ( prefers-color-scheme: dark ) {
-	.wp-ai-advisor {
-		border-color: rgba( 255, 255, 255, 0.18 );
+.aiadv__eyebrow {
+	margin: 0 0 0.75rem;
+	font-size: 0.6875rem;
+	font-weight: 500;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var( --aiadv-text-muted );
+}
+
+.aiadv__heading {
+	margin: 0 0 clamp( 1.25rem, 4vw, 2rem );
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: clamp( 1.5rem, 4.2vw, 2.25rem );
+	font-weight: 400;
+	line-height: 1.2;
+	color: var( --aiadv-text );
+}
+
+.aiadv__launch {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 4rem;
+	height: 4rem;
+	padding: 0;
+	border: 1px solid var( --aiadv-border );
+	border-radius: 50%;
+	background: var( --aiadv-surface-soft );
+	color: inherit;
+	cursor: pointer;
+	transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.aiadv__launch:hover,
+.aiadv__launch:focus-visible {
+	background: var( --aiadv-surface-softer );
+	transform: translateY( -1px );
+}
+
+.aiadv__icon {
+	width: 1.5rem;
+	height: 1.5rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.aiadv__hint {
+	display: block;
+	margin-top: 1rem;
+	color: var( --aiadv-text-muted );
+}
+
+.aiadv__hint svg {
+	width: 1rem;
+	height: 1rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	animation: aiadv-nudge 2.4s ease-in-out infinite;
+}
+
+@keyframes aiadv-nudge {
+	0%, 100% { transform: translateY( 0 ); }
+	50% { transform: translateY( 4px ); }
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.aiadv__hint svg {
+		animation: none;
+	}
+}
+
+.aiadv__suggestions {
+	display: flex;
+	flex-direction: column;
+	gap: 0.625rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.aiadv__suggestion {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	width: 100%;
+	padding: 0.875rem 1.125rem;
+	border: 1px solid var( --aiadv-border );
+	border-radius: 14px;
+	background: var( --aiadv-surface-soft );
+	color: inherit;
+	font: inherit;
+	font-size: 0.9375rem;
+	text-align: left;
+	cursor: pointer;
+	transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.aiadv__suggestion:hover,
+.aiadv__suggestion:focus-visible {
+	background: var( --aiadv-surface-softer );
+	border-color: var( --aiadv-accent );
+}
+
+.aiadv__suggestion-arrow {
+	flex: none;
+	width: 1rem;
+	height: 1rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+ * Conversation state
+ * ------------------------------------------------------------------------ */
+
+.aiadv__panel[hidden] {
+	display: none;
+}
+
+.aiadv__panel {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	min-height: min( 60vh, 26rem );
+}
+
+.aiadv__close {
+	position: absolute;
+	top: clamp( 1rem, 2.5vw, 1.5rem );
+	left: clamp( 1rem, 2.5vw, 1.5rem );
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+	border: 1px solid var( --aiadv-border );
+	border-radius: 50%;
+	background: var( --aiadv-surface-soft );
+	color: inherit;
+	cursor: pointer;
+}
+
+.aiadv__close svg {
+	width: 0.875rem;
+	height: 0.875rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.75;
+	stroke-linecap: round;
+}
+
+.aiadv__log {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	flex: 1;
+	max-height: min( 60vh, 28rem );
+	overflow-y: auto;
+	padding-top: 2.5rem;
+	scrollbar-width: thin;
+}
+
+.aiadv__message--user {
+	align-self: flex-end;
+	max-width: min( 85%, 32rem );
+	padding: 0.75rem 1.125rem;
+	border: 1px solid var( --aiadv-border );
+	border-radius: 18px;
+	background: var( --aiadv-surface-soft );
+}
+
+.aiadv__message--assistant {
+	align-self: stretch;
+	padding: 1.25rem;
+	border: 1px solid var( --aiadv-border );
+	border-radius: 18px;
+	background: var( --aiadv-surface-softer );
+	text-align: center;
+}
+
+.aiadv__message.is-pending {
+	opacity: 0.6;
+}
+
+.aiadv__text {
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.aiadv__actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+
+.aiadv__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 1rem;
+	border: 1px solid var( --aiadv-border );
+	border-radius: 999px;
+	background: var( --aiadv-surface-soft );
+	color: inherit;
+	font: inherit;
+	font-size: 0.875rem;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
+
+.aiadv__chip:hover,
+.aiadv__chip:focus-visible {
+	background: var( --aiadv-surface-softer );
+}
+
+.aiadv__chip--link {
+	border-color: transparent;
+	background: rgba( 255, 255, 255, 0.16 );
+}
+
+.aiadv__chip--cta {
+	border-color: transparent;
+	background: var( --aiadv-accent );
+	color: #141210;
+	font-weight: 500;
+}
+
+.aiadv--light .aiadv__chip--cta {
+	color: #ffffff;
+}
+
+.aiadv__chip svg {
+	width: 0.9375rem;
+	height: 0.9375rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.6;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+/* ---------------------------------------------------------------------------
+ * Composer
+ * ------------------------------------------------------------------------ */
+
+.aiadv__form {
+	display: flex;
+	align-items: flex-end;
+	gap: 0.75rem;
+	padding-top: 1rem;
+	border-top: 1px solid var( --aiadv-border );
+}
+
+.aiadv__input {
+	flex: 1;
+	min-height: 2.75rem;
+	max-height: 9rem;
+	padding: 0.625rem 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-size: 1.0625rem;
+	line-height: 1.4;
+	resize: none;
+	outline: none;
+}
+
+.aiadv__input::placeholder {
+	color: var( --aiadv-text-muted );
+}
+
+.aiadv__send {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 3rem;
+	height: 3rem;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: var( --aiadv-accent );
+	color: #141210;
+	cursor: pointer;
+	transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.aiadv--light .aiadv__send {
+	color: #ffffff;
+}
+
+.aiadv__send:hover:not( [disabled] ) {
+	transform: translateY( -1px );
+}
+
+.aiadv__send[disabled] {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.aiadv__send svg {
+	width: 1.125rem;
+	height: 1.125rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.aiadv__notice {
+	margin: 0;
+	color: #ff9d9d;
+	font-size: 0.875rem;
+}
+
+.aiadv--light .aiadv__notice {
+	color: #b22222;
+}
+
+.aiadv__notice[hidden] {
+	display: none;
+}
+
+/* Visible focus ring, since themes often remove the default. */
+.aiadv button:focus-visible,
+.aiadv a:focus-visible,
+.aiadv textarea:focus-visible {
+	outline: 2px solid var( --aiadv-accent );
+	outline-offset: 2px;
+}
+
+/* Screen-reader-only text, in case the theme does not define it. */
+.aiadv .screen-reader-text {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect( 0, 0, 0, 0 );
+	white-space: nowrap;
+	border: 0;
+}
+
+@media ( max-width: 30em ) {
+	.aiadv__card {
+		border-radius: 20px;
 	}
 
-	.wp-ai-advisor__message {
-		background: rgba( 255, 255, 255, 0.06 );
+	.aiadv__message--user {
+		max-width: 100%;
 	}
 
-	.wp-ai-advisor__message--user {
-		background: rgba( 255, 255, 255, 0.1 );
+	.aiadv__form {
+		gap: 0.5rem;
+	}
+
+	.aiadv__send {
+		width: 2.5rem;
+		height: 2.5rem;
 	}
 }

@@ -52,6 +52,7 @@ class WP_AI_Advisor_Plugin {
 	 */
 	public function init() {
 		add_action( 'init', array( $this, 'load_textdomain' ) );
+		add_action( 'admin_init', array( 'WP_AI_Advisor_Store', 'maybe_install' ) );
 		add_action( 'rest_api_init', array( $this->rest, 'register_routes' ) );
 
 		$this->shortcode->init();
@@ -83,6 +84,8 @@ class WP_AI_Advisor_Plugin {
 		if ( false === get_option( WP_AI_Advisor_Settings::OPTION_KEY, false ) ) {
 			add_option( WP_AI_Advisor_Settings::OPTION_KEY, WP_AI_Advisor_Settings::defaults() );
 		}
+
+		WP_AI_Advisor_Store::install();
 	}
 
 	/**

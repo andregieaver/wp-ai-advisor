@@ -1,11 +1,29 @@
 /**
- * Front-end behaviour for the [ai_advisor] widget.
+ * Front-end behaviour for the [ai_advisor] conversation container.
  */
 ( function () {
 	'use strict';
 
 	var config = window.wpAiAdvisor || {};
 	var strings = config.strings || {};
+
+	var ICONS = {
+		clock: 'M12 7v5l3 2M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z',
+		arrow: 'M5 12h14M12 5l7 7-7 7'
+	};
+
+	function svg( path ) {
+		var node = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
+		var shape = document.createElementNS( 'http://www.w3.org/2000/svg', 'path' );
+
+		node.setAttribute( 'viewBox', '0 0 24 24' );
+		node.setAttribute( 'aria-hidden', 'true' );
+		node.setAttribute( 'focusable', 'false' );
+		shape.setAttribute( 'd', path );
+		node.appendChild( shape );
+
+		return node;
+	}
 
 	function el( tag, className, text ) {
 		var node = document.createElement( tag );
@@ -21,143 +39,242 @@
 		return node;
 	}
 
-	function addMessage( log, role, text ) {
-		var wrapper = el( 'div', 'wp-ai-advisor__message wp-ai-advisor__message--' + role );
-		var label = el( 'span', 'wp-ai-advisor__role', 'assistant' === role ? strings.advisor : strings.you );
-		var body = el( 'p', 'wp-ai-advisor__text', text );
-
-		wrapper.appendChild( label );
-		wrapper.appendChild( body );
-		log.appendChild( wrapper );
-		log.scrollTop = log.scrollHeight;
-
-		return wrapper;
+	function Widget( root ) {
+		this.root = root;
+		this.panel = root.querySelector( '.aiadv__panel' );
+		this.log = root.querySelector( '.aiadv__log' );
+		this.form = root.querySelector( '.aiadv__form' );
+		this.input = root.querySelector( '.aiadv__input' );
+		this.send = root.querySelector( '.aiadv__send' );
+		this.notice = root.querySelector( '.aiadv__notice' );
+		this.launch = root.querySelector( '.aiadv__launch' );
+		this.close = root.querySelector( '.aiadv__close' );
+		this.history = [];
+		this.busy = false;
 	}
 
-	function addSources( wrapper, sources ) {
-		if ( ! sources || ! sources.length ) {
+	Widget.prototype.init = function () {
+		var self = this;
+
+		if ( ! this.panel || ! this.form || ! this.input ) {
 			return;
 		}
 
-		var list = el( 'ul', 'wp-ai-advisor__sources' );
-		var heading = el( 'span', 'wp-ai-advisor__sources-title', strings.sources );
-
-		sources.forEach( function ( source ) {
-			var item = el( 'li' );
-			var link = el( 'a', null, source.title );
-
-			link.href = source.url;
-			item.appendChild( link );
-			list.appendChild( item );
-		} );
-
-		wrapper.appendChild( heading );
-		wrapper.appendChild( list );
-	}
-
-	function setup( widget ) {
-		var form = widget.querySelector( '.wp-ai-advisor__form' );
-		var input = widget.querySelector( '.wp-ai-advisor__input' );
-		var button = widget.querySelector( '.wp-ai-advisor__submit' );
-		var log = widget.querySelector( '.wp-ai-advisor__log' );
-		var notice = widget.querySelector( '.wp-ai-advisor__notice' );
-		var history = [];
-		var busy = false;
-
-		if ( ! form || ! input || ! log ) {
-			return;
+		if ( this.launch ) {
+			this.launch.addEventListener( 'click', function () {
+				self.open();
+			} );
 		}
 
-		function showError( message ) {
-			notice.textContent = message;
-			notice.hidden = false;
+		if ( this.close ) {
+			this.close.addEventListener( 'click', function () {
+				self.collapse();
+			} );
 		}
 
-		function clearError() {
-			notice.textContent = '';
-			notice.hidden = true;
-		}
-
-		form.addEventListener( 'submit', function ( event ) {
-			event.preventDefault();
-
-			if ( busy ) {
-				return;
-			}
-
-			var question = input.value.trim();
-
-			if ( ! question ) {
-				return;
-			}
-
-			clearError();
-			addMessage( log, 'user', question );
-			input.value = '';
-
-			busy = true;
-			button.disabled = true;
-
-			var pending = addMessage( log, 'assistant', strings.thinking );
-			pending.classList.add( 'is-pending' );
-
-			window
-				.fetch( config.endpoint, {
-					method: 'POST',
-					credentials: 'same-origin',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-WP-Nonce': config.nonce
-					},
-					body: JSON.stringify( {
-						question: question,
-						history: history
-					} )
-				} )
-				.then( function ( response ) {
-					return response.json().then( function ( data ) {
-						return { ok: response.ok, data: data };
-					} );
-				} )
-				.then( function ( result ) {
-					pending.remove();
-
-					if ( ! result.ok ) {
-						showError( ( result.data && result.data.message ) || strings.error );
-
-						return;
-					}
-
-					var wrapper = addMessage( log, 'assistant', result.data.answer );
-					addSources( wrapper, result.data.sources );
-
-					history.push( { role: 'user', content: question } );
-					history.push( { role: 'assistant', content: result.data.answer } );
-					history = history.slice( -10 );
-				} )
-				.catch( function () {
-					pending.remove();
-					showError( strings.error );
-				} )
-				.finally( function () {
-					busy = false;
-					button.disabled = false;
-					input.focus();
+		Array.prototype.forEach.call(
+			this.root.querySelectorAll( '.aiadv__suggestion' ),
+			function ( button ) {
+				button.addEventListener( 'click', function () {
+					self.open();
+					self.ask( button.getAttribute( 'data-question' ) || button.textContent.trim() );
 				} );
+			}
+		);
+
+		this.form.addEventListener( 'submit', function ( event ) {
+			event.preventDefault();
+			self.ask( self.input.value );
 		} );
 
-		// Enter submits, Shift+Enter adds a newline.
-		input.addEventListener( 'keydown', function ( event ) {
+		// Enter sends, Shift+Enter makes a new line.
+		this.input.addEventListener( 'keydown', function ( event ) {
 			if ( 'Enter' === event.key && ! event.shiftKey ) {
 				event.preventDefault();
-				form.requestSubmit ? form.requestSubmit() : form.dispatchEvent( new Event( 'submit', { cancelable: true } ) );
+				self.ask( self.input.value );
 			}
+		} );
+
+		// Grow the composer with its content, up to the CSS max-height.
+		this.input.addEventListener( 'input', function () {
+			self.input.style.height = 'auto';
+			self.input.style.height = self.input.scrollHeight + 'px';
+		} );
+
+		this.root.addEventListener( 'keydown', function ( event ) {
+			if ( 'Escape' === event.key && self.root.classList.contains( 'is-open' ) ) {
+				self.collapse();
+			}
+		} );
+	};
+
+	Widget.prototype.open = function () {
+		this.root.classList.add( 'is-open' );
+		this.panel.hidden = false;
+
+		if ( this.launch ) {
+			this.launch.setAttribute( 'aria-expanded', 'true' );
+		}
+
+		this.input.focus();
+	};
+
+	Widget.prototype.collapse = function () {
+		this.root.classList.remove( 'is-open' );
+		this.panel.hidden = true;
+
+		if ( this.launch ) {
+			this.launch.setAttribute( 'aria-expanded', 'false' );
+			this.launch.focus();
+		}
+	};
+
+	Widget.prototype.showError = function ( message ) {
+		this.notice.textContent = message;
+		this.notice.hidden = false;
+	};
+
+	Widget.prototype.clearError = function () {
+		this.notice.textContent = '';
+		this.notice.hidden = true;
+	};
+
+	Widget.prototype.addMessage = function ( role, text ) {
+		var wrapper = el( 'div', 'aiadv__message aiadv__message--' + role );
+
+		wrapper.appendChild( el( 'span', 'screen-reader-text', 'assistant' === role ? strings.advisor : strings.you ) );
+		wrapper.appendChild( el( 'p', 'aiadv__text', text ) );
+
+		this.log.appendChild( wrapper );
+		this.log.scrollTop = this.log.scrollHeight;
+
+		return wrapper;
+	};
+
+	/**
+	 * Renders the chips under an answer: follow-up questions, site links, CTA.
+	 */
+	Widget.prototype.addActions = function ( wrapper, data ) {
+		var self = this;
+		var actions = el( 'div', 'aiadv__actions' );
+		var used = false;
+
+		( data.followups || [] ).forEach( function ( question ) {
+			var chip = el( 'button', 'aiadv__chip' );
+
+			chip.type = 'button';
+			chip.appendChild( el( 'span', null, question ) );
+			chip.addEventListener( 'click', function () {
+				self.ask( question );
+			} );
+
+			actions.appendChild( chip );
+			used = true;
+		} );
+
+		( data.links || [] ).forEach( function ( link ) {
+			var chip = el( 'a', 'aiadv__chip aiadv__chip--link' );
+
+			chip.href = link.url;
+			chip.appendChild( el( 'span', null, link.label ) );
+			chip.appendChild( svg( ICONS.arrow ) );
+
+			actions.appendChild( chip );
+			used = true;
+		} );
+
+		if ( data.cta && data.cta.url && data.cta.label ) {
+			var cta = el( 'a', 'aiadv__chip aiadv__chip--cta' );
+
+			cta.href = data.cta.url;
+			cta.appendChild( svg( ICONS.clock ) );
+			cta.appendChild( el( 'span', null, data.cta.label ) );
+
+			actions.appendChild( cta );
+			used = true;
+		}
+
+		if ( used ) {
+			wrapper.appendChild( actions );
+			this.log.scrollTop = this.log.scrollHeight;
+		}
+	};
+
+	Widget.prototype.setBusy = function ( busy ) {
+		this.busy = busy;
+		this.send.disabled = busy;
+	};
+
+	Widget.prototype.ask = function ( rawQuestion ) {
+		var self = this;
+		var question = ( rawQuestion || '' ).trim();
+
+		if ( this.busy || ! question ) {
+			return;
+		}
+
+		this.clearError();
+		this.addMessage( 'user', question );
+		this.input.value = '';
+		this.input.style.height = 'auto';
+		this.setBusy( true );
+
+		var pending = this.addMessage( 'assistant', strings.thinking );
+		pending.classList.add( 'is-pending' );
+
+		window
+			.fetch( config.endpoint, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': config.nonce
+				},
+				body: JSON.stringify( {
+					question: question,
+					history: this.history
+				} )
+			} )
+			.then( function ( response ) {
+				return response.json().then( function ( data ) {
+					return { ok: response.ok, data: data };
+				} );
+			} )
+			.then( function ( result ) {
+				pending.remove();
+
+				if ( ! result.ok ) {
+					self.showError( ( result.data && result.data.message ) || strings.error );
+
+					return;
+				}
+
+				var wrapper = self.addMessage( 'assistant', result.data.answer );
+				self.addActions( wrapper, result.data );
+
+				self.history.push( { role: 'user', content: question } );
+				self.history.push( { role: 'assistant', content: result.data.answer } );
+				self.history = self.history.slice( -8 );
+			} )
+			.catch( function () {
+				pending.remove();
+				self.showError( strings.error );
+			} )
+			.then( function () {
+				self.setBusy( false );
+				self.input.focus();
+			} );
+	};
+
+	function boot() {
+		Array.prototype.forEach.call( document.querySelectorAll( '.aiadv' ), function ( root ) {
+			new Widget( root ).init();
 		} );
 	}
 
-	document.addEventListener( 'DOMContentLoaded', function () {
-		var widgets = document.querySelectorAll( '.wp-ai-advisor' );
-
-		Array.prototype.forEach.call( widgets, setup );
-	} );
+	if ( 'loading' === document.readyState ) {
+		document.addEventListener( 'DOMContentLoaded', boot );
+	} else {
+		boot();
+	}
 } )();

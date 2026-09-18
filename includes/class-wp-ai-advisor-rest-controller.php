@@ -1,6 +1,6 @@
 <?php
 /**
- * REST endpoint backing the front-end advisor widget.
+ * REST endpoints for the widget and the admin knowledge-base tools.
  *
  * @package WP_AI_Advisor
  */
@@ -8,13 +8,13 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers and handles /wp-json/wp-ai-advisor/v1/ask.
+ * Registers routes under wp-ai-advisor/v1.
  */
 class WP_AI_Advisor_REST_Controller {
 
 	const NAMESPACE_V1 = 'wp-ai-advisor/v1';
-	const MAX_HISTORY  = 10;
-	const MAX_QUESTION = 2000;
+	const MAX_HISTORY  = 8;
+	const MAX_QUESTION = 1000;
 
 	/**
 	 * Registers the routes.
@@ -46,6 +46,80 @@ class WP_AI_Advisor_REST_Controller {
 				),
 			)
 		);
+
+		$admin_routes = array(
+			'/crawl/start'  => 'crawl_start',
+			'/crawl/step'   => 'crawl_step',
+			'/index/step'   => 'index_step',
+			'/documents'    => 'upload_document',
+			'/sources/delete' => 'delete_source',
+			'/clear'        => 'clear',
+			'/test'         => 'test_connection',
+		);
+
+		foreach ( $admin_routes as $route => $callback ) {
+			register_rest_route(
+				self::NAMESPACE_V1,
+				$route,
+				array(
+					array(
+						'methods'             => WP_REST_Server::CREATABLE,
+						'callback'            => array( $this, $callback ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+				)
+			);
+		}
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/status',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'status' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				),
+			)
+		);
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Permissions
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Administrator-only guard for the knowledge-base routes.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function can_manage() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return new WP_Error(
+				'wp_ai_advisor_forbidden',
+				__( 'You are not allowed to manage the advisor.', 'wp-ai-advisor' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Visitor guard: respects the admin-only toggle and the rate limit.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function can_ask() {
+		if ( ! WP_AI_Advisor_Settings::is_visible() ) {
+			return new WP_Error(
+				'wp_ai_advisor_hidden',
+				__( 'The advisor is not available.', 'wp-ai-advisor' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		return $this->check_rate_limit();
 	}
 
 	/**
@@ -80,25 +154,12 @@ class WP_AI_Advisor_REST_Controller {
 		return true;
 	}
 
-	/**
-	 * Permission check: optional login requirement plus per-client rate limiting.
-	 *
-	 * @return true|WP_Error
-	 */
-	public function can_ask() {
-		if ( WP_AI_Advisor_Settings::get( 'require_login' ) && ! is_user_logged_in() ) {
-			return new WP_Error(
-				'wp_ai_advisor_login_required',
-				__( 'Please log in to use the advisor.', 'wp-ai-advisor' ),
-				array( 'status' => 401 )
-			);
-		}
-
-		return $this->check_rate_limit();
-	}
+	/* ---------------------------------------------------------------------
+	 * Visitor endpoint
+	 * ------------------------------------------------------------------ */
 
 	/**
-	 * Handles a question.
+	 * Answers a question from the indexed knowledge base.
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -106,27 +167,47 @@ class WP_AI_Advisor_REST_Controller {
 	public function ask( WP_REST_Request $request ) {
 		$question = trim( (string) $request->get_param( 'question' ) );
 		$history  = $this->sanitize_history( (array) $request->get_param( 'history' ) );
+		$settings = WP_AI_Advisor_Settings::all();
+		$strict   = (bool) $settings['strict_mode'];
 
-		$context_builder = new WP_AI_Advisor_Context();
-		$context         = $context_builder->build( $question );
-		$system          = WP_AI_Advisor_Settings::system_prompt();
-
-		if ( '' !== $context ) {
-			$system .= "\n\n" . __( 'Site content you may use to answer:', 'wp-ai-advisor' ) . "\n\n" . $context;
-		} else {
-			$system .= "\n\n" . __( 'No matching site content was found for this question. Say so rather than guessing.', 'wp-ai-advisor' );
-		}
-
-		$messages   = $history;
-		$messages[] = array(
-			'role'    => 'user',
-			'content' => $question,
-		);
-
-		// Counted before the call so failed attempts cannot be looped for free.
 		$this->record_request();
 
-		$result = ( new WP_AI_Advisor_Claude_Client() )->send( $messages, $system );
+		$client = new WP_AI_Advisor_OpenAI_Client();
+
+		if ( ! $client->is_configured() ) {
+			return new WP_Error(
+				'wp_ai_advisor_missing_key',
+				__( 'The assistant is not configured yet.', 'wp-ai-advisor' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$vectors = $client->embed( array( $question ) );
+
+		if ( is_wp_error( $vectors ) ) {
+			$this->log_error( $vectors );
+
+			return $vectors;
+		}
+
+		$context = empty( $vectors[0] )
+			? array()
+			: WP_AI_Advisor_Store::search( $vectors[0], (int) $settings['top_k'], (float) $settings['min_score'] );
+
+		/**
+		 * Filters the retrieved context before it reaches the model.
+		 *
+		 * @param array  $context  Retrieved chunks.
+		 * @param string $question Visitor question.
+		 */
+		$context = apply_filters( 'wp_ai_advisor_context', $context, $question );
+
+		// Nothing relevant indexed: refuse without spending a completion.
+		if ( empty( $context ) && $strict ) {
+			return rest_ensure_response( $this->refusal_payload() );
+		}
+
+		$result = $client->answer( $question, $context, $history );
 
 		if ( is_wp_error( $result ) ) {
 			$this->log_error( $result );
@@ -134,26 +215,227 @@ class WP_AI_Advisor_REST_Controller {
 			return $result;
 		}
 
+		if ( $strict && empty( $result['grounded'] ) ) {
+			return rest_ensure_response( $this->refusal_payload() );
+		}
+
 		/**
 		 * Fires after the advisor answers a question.
 		 *
 		 * @param string $question Visitor question.
-		 * @param array  $result   Client result: text, usage, model.
+		 * @param array  $result   Model result.
+		 * @param array  $context  Retrieved chunks.
 		 */
-		do_action( 'wp_ai_advisor_answered', $question, $result );
+		do_action( 'wp_ai_advisor_answered', $question, $result, $context );
 
 		return rest_ensure_response(
 			array(
-				'answer'  => $result['text'],
-				'sources' => $context_builder->sources(),
+				'answer'    => $result['answer'],
+				'links'     => $result['links'],
+				'followups' => ! empty( $result['followups'] ) ? $result['followups'] : array(),
+				'cta'       => $this->cta(),
+				'grounded'  => (bool) $result['grounded'],
 			)
 		);
 	}
 
 	/**
-	 * Normalises client-supplied conversation history into API message shape.
+	 * The response used when a question falls outside the knowledge base.
 	 *
-	 * Only the last few turns are kept, and roles are forced to user/assistant.
+	 * @return array
+	 */
+	private function refusal_payload() {
+		return array(
+			'answer'    => WP_AI_Advisor_Settings::refusal_message(),
+			'links'     => array(),
+			'followups' => WP_AI_Advisor_Settings::suggestions(),
+			'cta'       => $this->cta(),
+			'grounded'  => false,
+		);
+	}
+
+	/**
+	 * The configured call-to-action button, if any.
+	 *
+	 * @return array|null
+	 */
+	private function cta() {
+		$label = trim( (string) WP_AI_Advisor_Settings::get( 'cta_label' ) );
+		$url   = trim( (string) WP_AI_Advisor_Settings::get( 'cta_url' ) );
+
+		if ( '' === $label || '' === $url ) {
+			return null;
+		}
+
+		return array(
+			'label' => $label,
+			'url'   => $url,
+		);
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Admin endpoints
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Verifies the API key.
+	 *
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function test_connection() {
+		$result = ( new WP_AI_Advisor_OpenAI_Client() )->test_connection();
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'message' => __( 'Connected to OpenAI.', 'wp-ai-advisor' ),
+			)
+		);
+	}
+
+	/**
+	 * Clears indexed pages and seeds the crawl frontier.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function crawl_start() {
+		$queued = ( new WP_AI_Advisor_Crawler() )->start();
+
+		return rest_ensure_response(
+			array(
+				'queued' => $queued,
+				'stats'  => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Fetches one queued page.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function crawl_step() {
+		$result = ( new WP_AI_Advisor_Crawler() )->crawl_next();
+
+		return rest_ensure_response(
+			array(
+				'done'   => null === $result,
+				'item'   => $result,
+				'stats'  => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Embeds one fetched source.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function index_step() {
+		$result = ( new WP_AI_Advisor_Indexer() )->index_next();
+
+		return rest_ensure_response(
+			array(
+				'done'  => null === $result,
+				'item'  => $result,
+				'stats' => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Accepts a document upload.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function upload_document( WP_REST_Request $request ) {
+		$files = $request->get_file_params();
+
+		if ( empty( $files['file'] ) ) {
+			return new WP_Error(
+				'wp_ai_advisor_no_file',
+				__( 'No file was uploaded.', 'wp-ai-advisor' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$result = ( new WP_AI_Advisor_Documents() )->handle_upload( $files['file'], 'file' );
+
+		if ( is_wp_error( $result ) ) {
+			$result->add_data( array( 'status' => 400 ) );
+
+			return $result;
+		}
+
+		return rest_ensure_response(
+			array(
+				'document' => $result,
+				'stats'    => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Deletes one source and its chunks.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response
+	 */
+	public function delete_source( WP_REST_Request $request ) {
+		WP_AI_Advisor_Store::delete_source( absint( $request->get_param( 'id' ) ) );
+
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'stats' => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Empties the knowledge base.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response
+	 */
+	public function clear( WP_REST_Request $request ) {
+		$type = sanitize_key( (string) $request->get_param( 'type' ) );
+
+		WP_AI_Advisor_Store::clear( in_array( $type, array( 'page', 'document' ), true ) ? $type : '' );
+
+		return rest_ensure_response(
+			array(
+				'ok'    => true,
+				'stats' => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Knowledge-base counts and source list.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function status() {
+		return rest_ensure_response(
+			array(
+				'stats'   => WP_AI_Advisor_Store::stats(),
+				'sources' => WP_AI_Advisor_Store::list_sources(),
+			)
+		);
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Helpers
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Normalises client-supplied history into API message shape.
 	 *
 	 * @param array $history Raw history from the request.
 	 * @return array
@@ -166,17 +448,14 @@ class WP_AI_Advisor_REST_Controller {
 				continue;
 			}
 
-			$role = 'assistant' === $entry['role'] ? 'assistant' : 'user';
-
 			$clean[] = array(
-				'role'    => $role,
-				'content' => sanitize_textarea_field( (string) $entry['content'] ),
+				'role'    => 'assistant' === $entry['role'] ? 'assistant' : 'user',
+				'content' => mb_substr( sanitize_textarea_field( (string) $entry['content'] ), 0, 2000 ),
 			);
 		}
 
 		$clean = array_slice( $clean, -self::MAX_HISTORY );
 
-		// The conversation must start with a user turn.
 		while ( ! empty( $clean ) && 'user' !== $clean[0]['role'] ) {
 			array_shift( $clean );
 		}
@@ -185,20 +464,18 @@ class WP_AI_Advisor_REST_Controller {
 	}
 
 	/**
-	 * Rejects a client that has exceeded the configured hourly request budget.
+	 * Rejects a client that has exceeded the hourly question budget.
 	 *
 	 * @return true|WP_Error
 	 */
 	private function check_rate_limit() {
 		$limit = (int) WP_AI_Advisor_Settings::get( 'rate_limit' );
 
-		if ( $limit < 1 ) {
+		if ( $limit < 1 || current_user_can( 'manage_options' ) ) {
 			return true;
 		}
 
-		$count = (int) get_transient( $this->rate_limit_key() );
-
-		if ( $count >= $limit ) {
+		if ( (int) get_transient( $this->rate_limit_key() ) >= $limit ) {
 			return new WP_Error(
 				'wp_ai_advisor_rate_limited',
 				__( 'You have reached the question limit for now. Please try again later.', 'wp-ai-advisor' ),
@@ -217,18 +494,17 @@ class WP_AI_Advisor_REST_Controller {
 	private function record_request() {
 		$limit = (int) WP_AI_Advisor_Settings::get( 'rate_limit' );
 
-		if ( $limit < 1 ) {
+		if ( $limit < 1 || current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		$key   = $this->rate_limit_key();
-		$count = (int) get_transient( $key );
+		$key = $this->rate_limit_key();
 
-		set_transient( $key, $count + 1, HOUR_IN_SECONDS );
+		set_transient( $key, (int) get_transient( $key ) + 1, HOUR_IN_SECONDS );
 	}
 
 	/**
-	 * Transient key identifying the caller: user ID when logged in, hashed IP otherwise.
+	 * Transient key identifying the caller.
 	 *
 	 * @return string
 	 */

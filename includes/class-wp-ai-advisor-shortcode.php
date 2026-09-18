@@ -8,7 +8,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Renders the advisor form and enqueues its assets on demand.
+ * Renders the conversation container and enqueues its assets on demand.
  */
 class WP_AI_Advisor_Shortcode {
 
@@ -52,12 +52,14 @@ class WP_AI_Advisor_Shortcode {
 			array(
 				'endpoint' => esc_url_raw( rest_url( WP_AI_Advisor_REST_Controller::NAMESPACE_V1 . '/ask' ) ),
 				'nonce'    => wp_create_nonce( 'wp_rest' ),
+				'maxChars' => WP_AI_Advisor_REST_Controller::MAX_QUESTION,
 				'strings'  => array(
 					'thinking' => __( 'Thinking…', 'wp-ai-advisor' ),
 					'error'    => __( 'Something went wrong. Please try again.', 'wp-ai-advisor' ),
-					'sources'  => __( 'Sources', 'wp-ai-advisor' ),
 					'you'      => __( 'You', 'wp-ai-advisor' ),
 					'advisor'  => __( 'Advisor', 'wp-ai-advisor' ),
+					'send'     => __( 'Send question', 'wp-ai-advisor' ),
+					'close'    => __( 'Close conversation', 'wp-ai-advisor' ),
 				),
 			)
 		);
@@ -70,54 +72,107 @@ class WP_AI_Advisor_Shortcode {
 	 * @return string
 	 */
 	public function render( $atts ) {
+		if ( ! WP_AI_Advisor_Settings::is_visible() ) {
+			return '';
+		}
+
+		$settings = WP_AI_Advisor_Settings::all();
+
 		$atts = shortcode_atts(
 			array(
-				'title'       => __( 'Ask the advisor', 'wp-ai-advisor' ),
-				'placeholder' => __( 'What would you like to know?', 'wp-ai-advisor' ),
-				'button'      => __( 'Ask', 'wp-ai-advisor' ),
+				'eyebrow'     => $settings['eyebrow'],
+				'heading'     => $settings['heading'],
+				'placeholder' => $settings['placeholder'],
+				'theme'       => 'dark',
+				'open'        => 'no',
 			),
 			$atts,
 			self::TAG
 		);
 
+		$eyebrow     = '' !== trim( (string) $atts['eyebrow'] ) ? $atts['eyebrow'] : __( 'Ask us', 'wp-ai-advisor' );
+		$heading     = '' !== trim( (string) $atts['heading'] ) ? $atts['heading'] : __( 'Hi, what can we help you with?', 'wp-ai-advisor' );
+		$placeholder = '' !== trim( (string) $atts['placeholder'] ) ? $atts['placeholder'] : __( 'Write here …', 'wp-ai-advisor' );
+		$theme       = 'light' === $atts['theme'] ? 'light' : 'dark';
+		$open        = in_array( strtolower( (string) $atts['open'] ), array( 'yes', 'true', '1' ), true );
+
+		$suggestions = WP_AI_Advisor_Settings::suggestions();
+		$widget_id   = wp_unique_id( 'aiadv-' );
+
 		wp_enqueue_style( self::HANDLE );
 		wp_enqueue_script( self::HANDLE );
 
-		$greeting  = trim( (string) WP_AI_Advisor_Settings::get( 'greeting', '' ) );
-		$widget_id = wp_unique_id( 'wp-ai-advisor-' );
-
 		ob_start();
 		?>
-		<div class="wp-ai-advisor" id="<?php echo esc_attr( $widget_id ); ?>">
-			<?php if ( $atts['title'] ) : ?>
-				<h2 class="wp-ai-advisor__title"><?php echo esc_html( $atts['title'] ); ?></h2>
-			<?php endif; ?>
+		<div
+			class="aiadv aiadv--<?php echo esc_attr( $theme ); ?><?php echo $open ? ' is-open' : ''; ?>"
+			id="<?php echo esc_attr( $widget_id ); ?>"
+			style="--aiadv-accent: <?php echo esc_attr( $settings['accent'] ); ?>;"
+		>
+			<div class="aiadv__card">
 
-			<div class="wp-ai-advisor__log" role="log" aria-live="polite">
-				<?php if ( '' !== $greeting ) : ?>
-					<div class="wp-ai-advisor__message wp-ai-advisor__message--assistant">
-						<p><?php echo esc_html( $greeting ); ?></p>
+				<div class="aiadv__intro">
+					<div class="aiadv__intro-main">
+						<p class="aiadv__eyebrow"><?php echo esc_html( $eyebrow ); ?></p>
+						<h2 class="aiadv__heading"><?php echo esc_html( $heading ); ?></h2>
+
+						<button type="button" class="aiadv__launch" aria-expanded="false" aria-controls="<?php echo esc_attr( $widget_id ); ?>-panel">
+							<span class="screen-reader-text"><?php echo esc_html( $placeholder ); ?></span>
+							<svg class="aiadv__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+								<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+							</svg>
+						</button>
+
+						<span class="aiadv__hint" aria-hidden="true">
+							<svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
+						</span>
 					</div>
-				<?php endif; ?>
+
+					<ul class="aiadv__suggestions">
+						<?php foreach ( $suggestions as $suggestion ) : ?>
+							<li>
+								<button type="button" class="aiadv__suggestion" data-question="<?php echo esc_attr( $suggestion ); ?>">
+									<span><?php echo esc_html( $suggestion ); ?></span>
+									<svg class="aiadv__suggestion-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+										<path d="M5 12h14M12 5l7 7-7 7" />
+									</svg>
+								</button>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				</div>
+
+				<div class="aiadv__panel" id="<?php echo esc_attr( $widget_id ); ?>-panel"<?php echo $open ? '' : ' hidden'; ?>>
+					<button type="button" class="aiadv__close">
+						<span class="screen-reader-text"><?php esc_html_e( 'Close conversation', 'wp-ai-advisor' ); ?></span>
+						<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12" /></svg>
+					</button>
+
+					<div class="aiadv__log" role="log" aria-live="polite"></div>
+
+					<form class="aiadv__form">
+						<label class="screen-reader-text" for="<?php echo esc_attr( $widget_id ); ?>-input">
+							<?php echo esc_html( $placeholder ); ?>
+						</label>
+						<textarea
+							id="<?php echo esc_attr( $widget_id ); ?>-input"
+							class="aiadv__input"
+							rows="1"
+							required
+							maxlength="<?php echo esc_attr( WP_AI_Advisor_REST_Controller::MAX_QUESTION ); ?>"
+							placeholder="<?php echo esc_attr( $placeholder ); ?>"></textarea>
+						<button type="submit" class="aiadv__send">
+							<span class="screen-reader-text"><?php esc_html_e( 'Send question', 'wp-ai-advisor' ); ?></span>
+							<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+								<path d="M12 19V5M5 12l7-7 7 7" />
+							</svg>
+						</button>
+					</form>
+
+					<p class="aiadv__notice" role="alert" hidden></p>
+				</div>
+
 			</div>
-
-			<form class="wp-ai-advisor__form">
-				<label class="screen-reader-text" for="<?php echo esc_attr( $widget_id ); ?>-input">
-					<?php echo esc_html( $atts['placeholder'] ); ?>
-				</label>
-				<textarea
-					id="<?php echo esc_attr( $widget_id ); ?>-input"
-					class="wp-ai-advisor__input"
-					rows="2"
-					required
-					maxlength="<?php echo esc_attr( WP_AI_Advisor_REST_Controller::MAX_QUESTION ); ?>"
-					placeholder="<?php echo esc_attr( $atts['placeholder'] ); ?>"></textarea>
-				<button type="submit" class="wp-ai-advisor__submit">
-					<?php echo esc_html( $atts['button'] ); ?>
-				</button>
-			</form>
-
-			<p class="wp-ai-advisor__notice" role="alert" hidden></p>
 		</div>
 		<?php
 

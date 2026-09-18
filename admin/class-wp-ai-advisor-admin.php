@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings screen under Settings → AI Advisor.
+ * Admin screen: settings and the knowledge base.
  *
  * @package WP_AI_Advisor
  */
@@ -8,7 +8,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the options page and its fields.
+ * Registers the options page, its fields and its assets.
  */
 class WP_AI_Advisor_Admin {
 
@@ -24,6 +24,7 @@ class WP_AI_Advisor_Admin {
 	public function init() {
 		add_action( 'admin_menu', array( $this, 'add_page' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WP_AI_ADVISOR_FILE ), array( $this, 'action_links' ) );
 	}
 
@@ -60,7 +61,54 @@ class WP_AI_Advisor_Admin {
 	}
 
 	/**
-	 * Registers the settings, sections, and fields.
+	 * Loads the knowledge-base script on this screen only.
+	 *
+	 * @param string $hook Current admin page hook.
+	 * @return void
+	 */
+	public function enqueue_assets( $hook ) {
+		if ( 'settings_page_' . self::PAGE_SLUG !== $hook ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'wp-ai-advisor-admin',
+			WP_AI_ADVISOR_URL . 'assets/css/admin.css',
+			array(),
+			WP_AI_ADVISOR_VERSION
+		);
+
+		wp_enqueue_script(
+			'wp-ai-advisor-admin',
+			WP_AI_ADVISOR_URL . 'assets/js/admin.js',
+			array(),
+			WP_AI_ADVISOR_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'wp-ai-advisor-admin',
+			'wpAiAdvisorAdmin',
+			array(
+				'root'    => esc_url_raw( rest_url( WP_AI_Advisor_REST_Controller::NAMESPACE_V1 ) ),
+				'nonce'   => wp_create_nonce( 'wp_rest' ),
+				'strings' => array(
+					'testing'    => __( 'Testing…', 'wp-ai-advisor' ),
+					'crawling'   => __( 'Crawling %s', 'wp-ai-advisor' ),
+					'indexing'   => __( 'Indexing %s', 'wp-ai-advisor' ),
+					'done'       => __( 'Done.', 'wp-ai-advisor' ),
+					'stopped'    => __( 'Stopped.', 'wp-ai-advisor' ),
+					'failed'     => __( 'Request failed.', 'wp-ai-advisor' ),
+					'uploading'  => __( 'Uploading…', 'wp-ai-advisor' ),
+					'confirm'    => __( 'This deletes the whole knowledge base. Continue?', 'wp-ai-advisor' ),
+					'noKey'      => __( 'Add an API key first.', 'wp-ai-advisor' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Registers the settings, sections and fields.
 	 *
 	 * @return void
 	 */
@@ -75,38 +123,44 @@ class WP_AI_Advisor_Admin {
 			)
 		);
 
-		add_settings_section(
-			'wp_ai_advisor_api',
-			__( 'API', 'wp-ai-advisor' ),
-			array( $this, 'render_api_section' ),
-			self::PAGE_SLUG
+		$sections = array(
+			'api'        => __( 'OpenAI connection', 'wp-ai-advisor' ),
+			'grounding'  => __( 'Answering', 'wp-ai-advisor' ),
+			'access'     => __( 'Access', 'wp-ai-advisor' ),
+			'appearance' => __( 'Appearance', 'wp-ai-advisor' ),
 		);
 
-		add_settings_section(
-			'wp_ai_advisor_behaviour',
-			__( 'Behaviour', 'wp-ai-advisor' ),
-			'__return_false',
-			self::PAGE_SLUG
-		);
-
-		add_settings_section(
-			'wp_ai_advisor_access',
-			__( 'Access', 'wp-ai-advisor' ),
-			'__return_false',
-			self::PAGE_SLUG
-		);
+		foreach ( $sections as $id => $title ) {
+			add_settings_section(
+				'wp_ai_advisor_' . $id,
+				$title,
+				'api' === $id ? array( $this, 'render_api_section' ) : '__return_false',
+				self::PAGE_SLUG
+			);
+		}
 
 		$fields = array(
-			array( 'api_key', __( 'Anthropic API key', 'wp-ai-advisor' ), 'render_api_key', 'wp_ai_advisor_api' ),
-			array( 'model', __( 'Model', 'wp-ai-advisor' ), 'render_model', 'wp_ai_advisor_api' ),
-			array( 'effort', __( 'Effort', 'wp-ai-advisor' ), 'render_effort', 'wp_ai_advisor_api' ),
-			array( 'max_tokens', __( 'Max response tokens', 'wp-ai-advisor' ), 'render_max_tokens', 'wp_ai_advisor_api' ),
-			array( 'system_prompt', __( 'System prompt', 'wp-ai-advisor' ), 'render_system_prompt', 'wp_ai_advisor_behaviour' ),
-			array( 'greeting', __( 'Greeting', 'wp-ai-advisor' ), 'render_greeting', 'wp_ai_advisor_behaviour' ),
-			array( 'context_post_type', __( 'Content to search', 'wp-ai-advisor' ), 'render_post_types', 'wp_ai_advisor_behaviour' ),
-			array( 'context_limit', __( 'Context items', 'wp-ai-advisor' ), 'render_context_limit', 'wp_ai_advisor_behaviour' ),
-			array( 'require_login', __( 'Require login', 'wp-ai-advisor' ), 'render_require_login', 'wp_ai_advisor_access' ),
-			array( 'rate_limit', __( 'Questions per hour', 'wp-ai-advisor' ), 'render_rate_limit', 'wp_ai_advisor_access' ),
+			array( 'api_key', __( 'API key', 'wp-ai-advisor' ), 'render_api_key', 'api' ),
+			array( 'model', __( 'Chat model', 'wp-ai-advisor' ), 'render_model', 'api' ),
+			array( 'embedding_model', __( 'Embedding model', 'wp-ai-advisor' ), 'render_embedding_model', 'api' ),
+			array( 'temperature', __( 'Temperature', 'wp-ai-advisor' ), 'render_temperature', 'api' ),
+			array( 'max_tokens', __( 'Max answer tokens', 'wp-ai-advisor' ), 'render_max_tokens', 'api' ),
+
+			array( 'strict_mode', __( 'Restrict to site content', 'wp-ai-advisor' ), 'render_strict_mode', 'grounding' ),
+			array( 'refusal_message', __( 'Off-topic reply', 'wp-ai-advisor' ), 'render_refusal_message', 'grounding' ),
+			array( 'system_prompt', __( 'System prompt', 'wp-ai-advisor' ), 'render_system_prompt', 'grounding' ),
+			array( 'top_k', __( 'Context passages', 'wp-ai-advisor' ), 'render_top_k', 'grounding' ),
+			array( 'min_score', __( 'Relevance threshold', 'wp-ai-advisor' ), 'render_min_score', 'grounding' ),
+
+			array( 'admin_only', __( 'Admin-only', 'wp-ai-advisor' ), 'render_admin_only', 'access' ),
+			array( 'rate_limit', __( 'Questions per hour', 'wp-ai-advisor' ), 'render_rate_limit', 'access' ),
+
+			array( 'eyebrow', __( 'Eyebrow', 'wp-ai-advisor' ), 'render_eyebrow', 'appearance' ),
+			array( 'heading', __( 'Heading', 'wp-ai-advisor' ), 'render_heading', 'appearance' ),
+			array( 'placeholder', __( 'Input placeholder', 'wp-ai-advisor' ), 'render_placeholder', 'appearance' ),
+			array( 'suggestions', __( 'Suggested questions', 'wp-ai-advisor' ), 'render_suggestions', 'appearance' ),
+			array( 'cta_label', __( 'Call to action', 'wp-ai-advisor' ), 'render_cta', 'appearance' ),
+			array( 'accent', __( 'Accent colour', 'wp-ai-advisor' ), 'render_accent', 'appearance' ),
 		);
 
 		foreach ( $fields as $field ) {
@@ -117,11 +171,171 @@ class WP_AI_Advisor_Admin {
 				$label,
 				array( $this, $callback ),
 				self::PAGE_SLUG,
-				$section,
+				'wp_ai_advisor_' . $section,
 				array( 'label_for' => 'wp_ai_advisor_' . $id )
 			);
 		}
 	}
+
+	/**
+	 * Renders the options page with its two tabs.
+	 *
+	 * @return void
+	 */
+	public function render_page() {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only tab switch.
+		$tab = isset( $_GET['tab'] ) && 'knowledge' === $_GET['tab'] ? 'knowledge' : 'settings';
+		?>
+		<div class="wrap wp-ai-advisor-admin">
+			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+
+			<h2 class="nav-tab-wrapper">
+				<a href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::PAGE_SLUG ) ); ?>"
+					class="nav-tab <?php echo 'settings' === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Settings', 'wp-ai-advisor' ); ?>
+				</a>
+				<a href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::PAGE_SLUG . '&tab=knowledge' ) ); ?>"
+					class="nav-tab <?php echo 'knowledge' === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Knowledge base', 'wp-ai-advisor' ); ?>
+				</a>
+			</h2>
+
+			<?php if ( 'knowledge' === $tab ) : ?>
+				<?php $this->render_knowledge_tab(); ?>
+			<?php else : ?>
+				<p>
+					<?php
+					printf(
+						/* translators: %s: shortcode example. */
+						esc_html__( 'Place the advisor on any page with %s.', 'wp-ai-advisor' ),
+						'<code>[ai_advisor]</code>'
+					);
+					?>
+				</p>
+				<form action="options.php" method="post">
+					<?php
+					settings_fields( self::GROUP );
+					printf(
+						'<input type="hidden" name="%s[_form]" value="settings" />',
+						esc_attr( WP_AI_Advisor_Settings::OPTION_KEY )
+					);
+					do_settings_sections( self::PAGE_SLUG );
+					submit_button();
+					?>
+				</form>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders the knowledge-base tab.
+	 *
+	 * @return void
+	 */
+	private function render_knowledge_tab() {
+		$stats   = WP_AI_Advisor_Store::stats();
+		$sources = WP_AI_Advisor_Store::list_sources();
+		?>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: site URL being crawled. */
+				esc_html__( 'Crawling reads %s, follows its internal links, and stores the text so the assistant can answer from it. Re-run it whenever the site changes.', 'wp-ai-advisor' ),
+				'<code>' . esc_html( WP_AI_Advisor_Settings::site_url() ) . '</code>'
+			);
+			?>
+		</p>
+
+		<div class="aiadv-admin__stats" id="aiadv-stats">
+			<span><?php esc_html_e( 'Sources', 'wp-ai-advisor' ); ?>: <strong data-stat="total"><?php echo (int) $stats['total']; ?></strong></span>
+			<span><?php esc_html_e( 'Indexed', 'wp-ai-advisor' ); ?>: <strong data-stat="indexed"><?php echo (int) $stats['indexed']; ?></strong></span>
+			<span><?php esc_html_e( 'Waiting', 'wp-ai-advisor' ); ?>: <strong data-stat="pending"><?php echo (int) $stats['pending'] + (int) $stats['fetched']; ?></strong></span>
+			<span><?php esc_html_e( 'Failed', 'wp-ai-advisor' ); ?>: <strong data-stat="error"><?php echo (int) $stats['error']; ?></strong></span>
+			<span><?php esc_html_e( 'Passages', 'wp-ai-advisor' ); ?>: <strong data-stat="chunks"><?php echo (int) $stats['chunks']; ?></strong></span>
+		</div>
+
+		<p class="aiadv-admin__actions">
+			<button type="button" class="button" id="aiadv-test"><?php esc_html_e( 'Test connection', 'wp-ai-advisor' ); ?></button>
+			<button type="button" class="button button-primary" id="aiadv-crawl"><?php esc_html_e( 'Crawl and index site', 'wp-ai-advisor' ); ?></button>
+			<button type="button" class="button" id="aiadv-index"><?php esc_html_e( 'Index waiting sources', 'wp-ai-advisor' ); ?></button>
+			<button type="button" class="button" id="aiadv-stop" disabled><?php esc_html_e( 'Stop', 'wp-ai-advisor' ); ?></button>
+			<button type="button" class="button button-link-delete" id="aiadv-clear"><?php esc_html_e( 'Clear everything', 'wp-ai-advisor' ); ?></button>
+		</p>
+
+		<p class="aiadv-admin__log" id="aiadv-log" role="status" aria-live="polite"></p>
+
+		<h2><?php esc_html_e( 'Additional documents', 'wp-ai-advisor' ); ?></h2>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: comma-separated list of file extensions. */
+				esc_html__( 'Upload price lists, menus or policies the website does not spell out. Allowed: %s. Scanned PDFs hold images rather than text and cannot be read.', 'wp-ai-advisor' ),
+				esc_html( implode( ', ', WP_AI_Advisor_Documents::allowed_extensions() ) )
+			);
+			?>
+		</p>
+		<p>
+			<input type="file" id="aiadv-file" accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.docx,.pdf" />
+			<button type="button" class="button" id="aiadv-upload"><?php esc_html_e( 'Upload and index', 'wp-ai-advisor' ); ?></button>
+		</p>
+
+		<h2><?php esc_html_e( 'Sources', 'wp-ai-advisor' ); ?></h2>
+		<table class="widefat striped aiadv-admin__table">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Title', 'wp-ai-advisor' ); ?></th>
+					<th><?php esc_html_e( 'Type', 'wp-ai-advisor' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'wp-ai-advisor' ); ?></th>
+					<th><?php esc_html_e( 'Updated', 'wp-ai-advisor' ); ?></th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php if ( empty( $sources ) ) : ?>
+					<tr>
+						<td colspan="5"><?php esc_html_e( 'Nothing indexed yet.', 'wp-ai-advisor' ); ?></td>
+					</tr>
+				<?php else : ?>
+					<?php foreach ( $sources as $source ) : ?>
+						<tr>
+							<td>
+								<?php if ( WP_AI_Advisor_Store::TYPE_PAGE === $source['type'] ) : ?>
+									<a href="<?php echo esc_url( $source['url'] ); ?>" target="_blank" rel="noopener">
+										<?php echo esc_html( $source['title'] ? $source['title'] : $source['url'] ); ?>
+									</a>
+								<?php else : ?>
+									<?php echo esc_html( $source['title'] ); ?>
+								<?php endif; ?>
+							</td>
+							<td><?php echo esc_html( $source['type'] ); ?></td>
+							<td>
+								<?php echo esc_html( $source['status'] ); ?>
+								<?php if ( $source['message'] ) : ?>
+									<span class="description">— <?php echo esc_html( $source['message'] ); ?></span>
+								<?php endif; ?>
+							</td>
+							<td><?php echo esc_html( $source['updated_at'] ); ?></td>
+							<td>
+								<button type="button" class="button-link aiadv-admin__delete" data-id="<?php echo (int) $source['id']; ?>">
+									<?php esc_html_e( 'Delete', 'wp-ai-advisor' ); ?>
+								</button>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				<?php endif; ?>
+			</tbody>
+		</table>
+		<?php
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Fields
+	 * ------------------------------------------------------------------ */
 
 	/**
 	 * Intro copy for the API section.
@@ -131,40 +345,8 @@ class WP_AI_Advisor_Admin {
 	public function render_api_section() {
 		printf(
 			'<p>%s</p>',
-			esc_html__( 'Create a key in the Anthropic Console. For production sites, define WP_AI_ADVISOR_API_KEY in wp-config.php instead of storing the key in the database.', 'wp-ai-advisor' )
+			esc_html__( 'Create a key at platform.openai.com. For production sites, define WP_AI_ADVISOR_API_KEY in wp-config.php instead of storing the key in the database.', 'wp-ai-advisor' )
 		);
-	}
-
-	/**
-	 * Renders the options page.
-	 *
-	 * @return void
-	 */
-	public function render_page() {
-		if ( ! current_user_can( self::CAPABILITY ) ) {
-			return;
-		}
-		?>
-		<div class="wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<p>
-				<?php
-				printf(
-					/* translators: %s: shortcode example. */
-					esc_html__( 'Place the advisor on any page with %s.', 'wp-ai-advisor' ),
-					'<code>[ai_advisor]</code>'
-				);
-				?>
-			</p>
-			<form action="options.php" method="post">
-				<?php
-				settings_fields( self::GROUP );
-				do_settings_sections( self::PAGE_SLUG );
-				submit_button();
-				?>
-			</form>
-		</div>
-		<?php
 	}
 
 	/**
@@ -175,6 +357,43 @@ class WP_AI_Advisor_Admin {
 	 */
 	private function name( $key ) {
 		return WP_AI_Advisor_Settings::OPTION_KEY . '[' . $key . ']';
+	}
+
+	/**
+	 * Renders a text-ish input.
+	 *
+	 * @param string $key   Setting key.
+	 * @param string $type  Input type.
+	 * @param string $class CSS class.
+	 * @param array  $attrs Extra attributes.
+	 * @return void
+	 */
+	private function text_field( $key, $type = 'text', $class = 'regular-text', $attrs = array() ) {
+		$extra = '';
+
+		foreach ( $attrs as $attr => $value ) {
+			$extra .= sprintf( ' %s="%s"', esc_attr( $attr ), esc_attr( $value ) );
+		}
+
+		printf(
+			'<input type="%1$s" id="wp_ai_advisor_%2$s" name="%3$s" value="%4$s" class="%5$s"%6$s />',
+			esc_attr( $type ),
+			esc_attr( $key ),
+			esc_attr( $this->name( $key ) ),
+			esc_attr( (string) WP_AI_Advisor_Settings::get( $key ) ),
+			esc_attr( $class ),
+			$extra // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped parts above.
+		);
+	}
+
+	/**
+	 * Renders a description paragraph.
+	 *
+	 * @param string $text Description text.
+	 * @return void
+	 */
+	private function description( $text ) {
+		printf( '<p class="description">%s</p>', esc_html( $text ) );
 	}
 
 	/**
@@ -197,67 +416,40 @@ class WP_AI_Advisor_Admin {
 		printf(
 			'<input type="password" id="wp_ai_advisor_api_key" name="%1$s" value="" class="regular-text" autocomplete="off" placeholder="%2$s" />',
 			esc_attr( $this->name( 'api_key' ) ),
-			esc_attr( $has_key ? __( 'A key is saved. Enter a new key to replace it.', 'wp-ai-advisor' ) : 'sk-ant-…' )
+			esc_attr( $has_key ? __( 'A key is saved. Enter a new key to replace it.', 'wp-ai-advisor' ) : 'sk-…' )
 		);
 
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Leave blank to keep the saved key.', 'wp-ai-advisor' )
-		);
+		$this->description( __( 'Leave blank to keep the saved key.', 'wp-ai-advisor' ) );
 	}
 
 	/**
-	 * Model field.
+	 * Chat model field.
 	 *
 	 * @return void
 	 */
 	public function render_model() {
-		$current = WP_AI_Advisor_Settings::get( 'model' );
-		$models  = array(
-			'claude-opus-5'    => __( 'Claude Opus 5 — most capable', 'wp-ai-advisor' ),
-			'claude-sonnet-5'  => __( 'Claude Sonnet 5 — balanced', 'wp-ai-advisor' ),
-			'claude-haiku-4-5' => __( 'Claude Haiku 4.5 — fastest and cheapest', 'wp-ai-advisor' ),
-		);
-
-		echo '<select id="wp_ai_advisor_model" name="' . esc_attr( $this->name( 'model' ) ) . '">';
-
-		foreach ( $models as $value => $label ) {
-			printf(
-				'<option value="%1$s"%2$s>%3$s</option>',
-				esc_attr( $value ),
-				selected( $current, $value, false ),
-				esc_html( $label )
-			);
-		}
-
-		echo '</select>';
+		$this->text_field( 'model' );
+		$this->description( __( 'Any chat model your account can use, for example gpt-4o-mini or gpt-4o.', 'wp-ai-advisor' ) );
 	}
 
 	/**
-	 * Effort field.
+	 * Embedding model field.
 	 *
 	 * @return void
 	 */
-	public function render_effort() {
-		$current = WP_AI_Advisor_Settings::get( 'effort' );
-		$levels  = array( 'low', 'medium', 'high', 'xhigh', 'max' );
+	public function render_embedding_model() {
+		$this->text_field( 'embedding_model' );
+		$this->description( __( 'Changing this invalidates the stored vectors — re-crawl afterwards.', 'wp-ai-advisor' ) );
+	}
 
-		echo '<select id="wp_ai_advisor_effort" name="' . esc_attr( $this->name( 'effort' ) ) . '">';
-
-		foreach ( $levels as $level ) {
-			printf(
-				'<option value="%1$s"%2$s>%1$s</option>',
-				esc_attr( $level ),
-				selected( $current, $level, false )
-			);
-		}
-
-		echo '</select>';
-
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'How much reasoning each answer gets. Higher settings cost more tokens and take longer.', 'wp-ai-advisor' )
-		);
+	/**
+	 * Temperature field.
+	 *
+	 * @return void
+	 */
+	public function render_temperature() {
+		$this->text_field( 'temperature', 'number', 'small-text', array( 'min' => '0', 'max' => '2', 'step' => '0.1' ) );
+		$this->description( __( 'Lower is more literal. 0.2 suits factual answers.', 'wp-ai-advisor' ) );
 	}
 
 	/**
@@ -266,11 +458,38 @@ class WP_AI_Advisor_Admin {
 	 * @return void
 	 */
 	public function render_max_tokens() {
+		$this->text_field( 'max_tokens', 'number', 'small-text', array( 'min' => '128', 'max' => '4000', 'step' => '64' ) );
+	}
+
+	/**
+	 * Strict-mode checkbox.
+	 *
+	 * @return void
+	 */
+	public function render_strict_mode() {
 		printf(
-			'<input type="number" id="wp_ai_advisor_max_tokens" name="%1$s" value="%2$d" min="256" max="16000" step="256" class="small-text" />',
-			esc_attr( $this->name( 'max_tokens' ) ),
-			(int) WP_AI_Advisor_Settings::get( 'max_tokens' )
+			'<label><input type="checkbox" id="wp_ai_advisor_strict_mode" name="%1$s" value="1"%2$s /> %3$s</label>',
+			esc_attr( $this->name( 'strict_mode' ) ),
+			checked( (bool) WP_AI_Advisor_Settings::get( 'strict_mode' ), true, false ),
+			esc_html__( 'Only answer from indexed site content and uploaded documents.', 'wp-ai-advisor' )
 		);
+
+		$this->description( __( 'With this off, the model may also answer from general knowledge.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Refusal message field.
+	 *
+	 * @return void
+	 */
+	public function render_refusal_message() {
+		printf(
+			'<textarea id="wp_ai_advisor_refusal_message" name="%1$s" rows="3" class="large-text">%2$s</textarea>',
+			esc_attr( $this->name( 'refusal_message' ) ),
+			esc_textarea( WP_AI_Advisor_Settings::get( 'refusal_message' ) )
+		);
+
+		$this->description( __( 'Shown when a question is outside the knowledge base. Leave blank for the default.', 'wp-ai-advisor' ) );
 	}
 
 	/**
@@ -280,93 +499,48 @@ class WP_AI_Advisor_Admin {
 	 */
 	public function render_system_prompt() {
 		printf(
-			'<textarea id="wp_ai_advisor_system_prompt" name="%1$s" rows="6" class="large-text code">%2$s</textarea>',
+			'<textarea id="wp_ai_advisor_system_prompt" name="%1$s" rows="5" class="large-text code">%2$s</textarea>',
 			esc_attr( $this->name( 'system_prompt' ) ),
 			esc_textarea( WP_AI_Advisor_Settings::get( 'system_prompt' ) )
 		);
 
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Leave blank to use the built-in prompt. Matched site content is appended automatically.', 'wp-ai-advisor' )
-		);
+		$this->description( __( 'Sets tone and role. Grounding rules are appended automatically. Leave blank for the default.', 'wp-ai-advisor' ) );
 	}
 
 	/**
-	 * Greeting field.
+	 * Top-k field.
 	 *
 	 * @return void
 	 */
-	public function render_greeting() {
-		printf(
-			'<input type="text" id="wp_ai_advisor_greeting" name="%1$s" value="%2$s" class="regular-text" />',
-			esc_attr( $this->name( 'greeting' ) ),
-			esc_attr( WP_AI_Advisor_Settings::get( 'greeting' ) )
-		);
-
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Shown above the input before the first question.', 'wp-ai-advisor' )
-		);
+	public function render_top_k() {
+		$this->text_field( 'top_k', 'number', 'small-text', array( 'min' => '1', 'max' => '20' ) );
+		$this->description( __( 'How many matching passages are sent with each question.', 'wp-ai-advisor' ) );
 	}
 
 	/**
-	 * Post type checkboxes.
+	 * Minimum score field.
 	 *
 	 * @return void
 	 */
-	public function render_post_types() {
-		$selected   = (array) WP_AI_Advisor_Settings::get( 'context_post_type' );
-		$post_types = get_post_types( array( 'public' => true ), 'objects' );
-
-		echo '<fieldset>';
-
-		foreach ( $post_types as $post_type ) {
-			if ( 'attachment' === $post_type->name ) {
-				continue;
-			}
-
-			printf(
-				'<label><input type="checkbox" name="%1$s[]" value="%2$s"%3$s /> %4$s</label><br />',
-				esc_attr( $this->name( 'context_post_type' ) ),
-				esc_attr( $post_type->name ),
-				checked( in_array( $post_type->name, $selected, true ), true, false ),
-				esc_html( $post_type->labels->name )
-			);
-		}
-
-		echo '</fieldset>';
+	public function render_min_score() {
+		$this->text_field( 'min_score', 'number', 'small-text', array( 'min' => '0', 'max' => '1', 'step' => '0.05' ) );
+		$this->description( __( 'Passages scoring below this are ignored. Raise it if answers drift, lower it if the advisor refuses too often.', 'wp-ai-advisor' ) );
 	}
 
 	/**
-	 * Context limit field.
+	 * Admin-only checkbox.
 	 *
 	 * @return void
 	 */
-	public function render_context_limit() {
+	public function render_admin_only() {
 		printf(
-			'<input type="number" id="wp_ai_advisor_context_limit" name="%1$s" value="%2$d" min="0" max="20" class="small-text" />',
-			esc_attr( $this->name( 'context_limit' ) ),
-			(int) WP_AI_Advisor_Settings::get( 'context_limit' )
+			'<label><input type="checkbox" id="wp_ai_advisor_admin_only" name="%1$s" value="1"%2$s /> %3$s</label>',
+			esc_attr( $this->name( 'admin_only' ) ),
+			checked( (bool) WP_AI_Advisor_Settings::get( 'admin_only' ), true, false ),
+			esc_html__( 'Show the widget to administrators only.', 'wp-ai-advisor' )
 		);
 
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'How many matching posts are passed to the model. 0 disables site context.', 'wp-ai-advisor' )
-		);
-	}
-
-	/**
-	 * Require-login checkbox.
-	 *
-	 * @return void
-	 */
-	public function render_require_login() {
-		printf(
-			'<label><input type="checkbox" id="wp_ai_advisor_require_login" name="%1$s" value="1"%2$s /> %3$s</label>',
-			esc_attr( $this->name( 'require_login' ) ),
-			checked( (bool) WP_AI_Advisor_Settings::get( 'require_login' ), true, false ),
-			esc_html__( 'Only logged-in users may ask questions.', 'wp-ai-advisor' )
-		);
+		$this->description( __( 'Use this to test on a live site: visitors see nothing and the endpoint refuses them.', 'wp-ai-advisor' ) );
 	}
 
 	/**
@@ -375,15 +549,76 @@ class WP_AI_Advisor_Admin {
 	 * @return void
 	 */
 	public function render_rate_limit() {
+		$this->text_field( 'rate_limit', 'number', 'small-text', array( 'min' => '0', 'max' => '500' ) );
+		$this->description( __( 'Per visitor, per hour. 0 disables the limit. Administrators are never limited.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Eyebrow field.
+	 *
+	 * @return void
+	 */
+	public function render_eyebrow() {
+		$this->text_field( 'eyebrow' );
+		$this->description( __( 'Small label above the heading, e.g. "Ask us".', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Heading field.
+	 *
+	 * @return void
+	 */
+	public function render_heading() {
+		$this->text_field( 'heading', 'text', 'large-text' );
+	}
+
+	/**
+	 * Placeholder field.
+	 *
+	 * @return void
+	 */
+	public function render_placeholder() {
+		$this->text_field( 'placeholder' );
+	}
+
+	/**
+	 * Suggested questions field.
+	 *
+	 * @return void
+	 */
+	public function render_suggestions() {
 		printf(
-			'<input type="number" id="wp_ai_advisor_rate_limit" name="%1$s" value="%2$d" min="0" max="240" class="small-text" />',
-			esc_attr( $this->name( 'rate_limit' ) ),
-			(int) WP_AI_Advisor_Settings::get( 'rate_limit' )
+			'<textarea id="wp_ai_advisor_suggestions" name="%1$s" rows="5" class="large-text">%2$s</textarea>',
+			esc_attr( $this->name( 'suggestions' ) ),
+			esc_textarea( implode( "\n", (array) WP_AI_Advisor_Settings::get( 'suggestions' ) ) )
 		);
 
+		$this->description( __( 'One per line, up to six. Shown as buttons on the closed card.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Call-to-action fields.
+	 *
+	 * @return void
+	 */
+	public function render_cta() {
+		$this->text_field( 'cta_label' );
+		echo ' ';
 		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Per visitor, per hour. 0 disables rate limiting.', 'wp-ai-advisor' )
+			'<input type="url" id="wp_ai_advisor_cta_url" name="%1$s" value="%2$s" class="regular-text" placeholder="https://" />',
+			esc_attr( $this->name( 'cta_url' ) ),
+			esc_attr( (string) WP_AI_Advisor_Settings::get( 'cta_url' ) )
 		);
+
+		$this->description( __( 'Label and URL for the highlighted button under each answer, e.g. "Book a table". Leave blank to hide it.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Accent colour field.
+	 *
+	 * @return void
+	 */
+	public function render_accent() {
+		$this->text_field( 'accent', 'color', 'small-text' );
 	}
 }

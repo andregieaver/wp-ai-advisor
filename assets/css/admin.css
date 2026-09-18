@@ -1,0 +1,39 @@
+/* Admin styles for the AI Advisor knowledge-base tab. */
+
+.wp-ai-advisor-admin .aiadv-admin__stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.5rem;
+	margin: 1rem 0;
+	padding: 0.85rem 1rem;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__log {
+	min-height: 1.5em;
+	margin: 0.5rem 0 1.5rem;
+	color: #50575e;
+	font-style: italic;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__table {
+	max-width: 60rem;
+	margin-top: 0.5rem;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__table td {
+	vertical-align: middle;
+}
+
+.wp-ai-advisor-admin .button-link-delete {
+	color: #b32d2e;
+}
