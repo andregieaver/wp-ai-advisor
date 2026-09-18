@@ -94,7 +94,9 @@ class WP_AI_Advisor_Admin {
 				'nonce'   => wp_create_nonce( 'wp_rest' ),
 				'strings' => array(
 					'testing'    => __( 'Testing…', 'wp-ai-advisor' ),
+					'preparing'  => __( 'Preparing…', 'wp-ai-advisor' ),
 					'crawling'   => __( 'Crawling %s', 'wp-ai-advisor' ),
+					'importing'  => __( 'Importing %s', 'wp-ai-advisor' ),
 					'indexing'   => __( 'Indexing %s', 'wp-ai-advisor' ),
 					'done'       => __( 'Done.', 'wp-ai-advisor' ),
 					'stopped'    => __( 'Stopped.', 'wp-ai-advisor' ),
@@ -125,6 +127,7 @@ class WP_AI_Advisor_Admin {
 
 		$sections = array(
 			'api'        => __( 'OpenAI connection', 'wp-ai-advisor' ),
+			'sources'    => __( 'Knowledge source', 'wp-ai-advisor' ),
 			'grounding'  => __( 'Answering', 'wp-ai-advisor' ),
 			'access'     => __( 'Access', 'wp-ai-advisor' ),
 			'appearance' => __( 'Appearance', 'wp-ai-advisor' ),
@@ -145,6 +148,12 @@ class WP_AI_Advisor_Admin {
 			array( 'embedding_model', __( 'Embedding model', 'wp-ai-advisor' ), 'render_embedding_model', 'api' ),
 			array( 'temperature', __( 'Temperature', 'wp-ai-advisor' ), 'render_temperature', 'api' ),
 			array( 'max_tokens', __( 'Max answer tokens', 'wp-ai-advisor' ), 'render_max_tokens', 'api' ),
+
+			array( 'source_mode', __( 'Build the index from', 'wp-ai-advisor' ), 'render_source_mode', 'sources' ),
+			array( 'local_post_types', __( 'Local post types', 'wp-ai-advisor' ), 'render_local_post_types', 'sources' ),
+			array( 'site_url', __( 'Site URL to crawl', 'wp-ai-advisor' ), 'render_site_url', 'sources' ),
+			array( 'crawl_max_pages', __( 'Maximum pages', 'wp-ai-advisor' ), 'render_crawl_max_pages', 'sources' ),
+			array( 'crawl_exclude', __( 'Skip URLs containing', 'wp-ai-advisor' ), 'render_crawl_exclude', 'sources' ),
 
 			array( 'strict_mode', __( 'Restrict to site content', 'wp-ai-advisor' ), 'render_strict_mode', 'grounding' ),
 			array( 'refusal_message', __( 'Off-topic reply', 'wp-ai-advisor' ), 'render_refusal_message', 'grounding' ),
@@ -241,15 +250,7 @@ class WP_AI_Advisor_Admin {
 		$stats   = WP_AI_Advisor_Store::stats();
 		$sources = WP_AI_Advisor_Store::list_sources();
 		?>
-		<p class="description">
-			<?php
-			printf(
-				/* translators: %s: site URL being crawled. */
-				esc_html__( 'Crawling reads %s, follows its internal links, and stores the text so the assistant can answer from it. Re-run it whenever the site changes.', 'wp-ai-advisor' ),
-				'<code>' . esc_html( WP_AI_Advisor_Settings::site_url() ) . '</code>'
-			);
-			?>
-		</p>
+		<p class="description"><?php echo esc_html( $this->source_summary() ); ?></p>
 
 		<div class="aiadv-admin__stats" id="aiadv-stats">
 			<span><?php esc_html_e( 'Sources', 'wp-ai-advisor' ); ?>: <strong data-stat="total"><?php echo (int) $stats['total']; ?></strong></span>
@@ -261,7 +262,13 @@ class WP_AI_Advisor_Admin {
 
 		<p class="aiadv-admin__actions">
 			<button type="button" class="button" id="aiadv-test"><?php esc_html_e( 'Test connection', 'wp-ai-advisor' ); ?></button>
-			<button type="button" class="button button-primary" id="aiadv-crawl"><?php esc_html_e( 'Crawl and index site', 'wp-ai-advisor' ); ?></button>
+			<button type="button" class="button button-primary" id="aiadv-build"><?php esc_html_e( 'Build knowledge base', 'wp-ai-advisor' ); ?></button>
+			<?php if ( WP_AI_Advisor_Settings::uses( 'crawl' ) ) : ?>
+				<button type="button" class="button" id="aiadv-crawl"><?php esc_html_e( 'Crawl only', 'wp-ai-advisor' ); ?></button>
+			<?php endif; ?>
+			<?php if ( WP_AI_Advisor_Settings::uses( 'local' ) ) : ?>
+				<button type="button" class="button" id="aiadv-local"><?php esc_html_e( 'Import local content only', 'wp-ai-advisor' ); ?></button>
+			<?php endif; ?>
 			<button type="button" class="button" id="aiadv-index"><?php esc_html_e( 'Index waiting sources', 'wp-ai-advisor' ); ?></button>
 			<button type="button" class="button" id="aiadv-stop" disabled><?php esc_html_e( 'Stop', 'wp-ai-advisor' ); ?></button>
 			<button type="button" class="button button-link-delete" id="aiadv-clear"><?php esc_html_e( 'Clear everything', 'wp-ai-advisor' ); ?></button>
@@ -304,7 +311,7 @@ class WP_AI_Advisor_Admin {
 					<?php foreach ( $sources as $source ) : ?>
 						<tr>
 							<td>
-								<?php if ( WP_AI_Advisor_Store::TYPE_PAGE === $source['type'] ) : ?>
+								<?php if ( WP_AI_Advisor_Store::TYPE_DOCUMENT !== $source['type'] && $source['url'] ) : ?>
 									<a href="<?php echo esc_url( $source['url'] ); ?>" target="_blank" rel="noopener">
 										<?php echo esc_html( $source['title'] ? $source['title'] : $source['url'] ); ?>
 									</a>
@@ -336,6 +343,39 @@ class WP_AI_Advisor_Admin {
 	/* ---------------------------------------------------------------------
 	 * Fields
 	 * ------------------------------------------------------------------ */
+
+	/**
+	 * One line describing what a build will do under the current mode.
+	 *
+	 * @return string
+	 */
+	private function source_summary() {
+		$post_types = implode( ', ', WP_AI_Advisor_Settings::local_post_types() );
+
+		switch ( WP_AI_Advisor_Settings::source_mode() ) {
+			case 'local':
+				return sprintf(
+					/* translators: %s: comma-separated post type names. */
+					__( 'Local mode: reads published %s from this install, with no HTTP requests. Re-run after you change content.', 'wp-ai-advisor' ),
+					$post_types ? $post_types : __( '(no post types selected)', 'wp-ai-advisor' )
+				);
+
+			case 'both':
+				return sprintf(
+					/* translators: 1: site URL, 2: comma-separated post type names. */
+					__( 'Both modes: crawls %1$s for rendered navigation and reads published %2$s locally. Re-run after the site changes.', 'wp-ai-advisor' ),
+					WP_AI_Advisor_Settings::site_url(),
+					$post_types ? $post_types : __( '(no post types selected)', 'wp-ai-advisor' )
+				);
+
+			default:
+				return sprintf(
+					/* translators: %s: site URL being crawled. */
+					__( 'Crawl mode: fetches %s, follows its internal links and stores the text. Re-run after the site changes.', 'wp-ai-advisor' ),
+					WP_AI_Advisor_Settings::site_url()
+				);
+		}
+	}
 
 	/**
 	 * Intro copy for the API section.
@@ -459,6 +499,110 @@ class WP_AI_Advisor_Admin {
 	 */
 	public function render_max_tokens() {
 		$this->text_field( 'max_tokens', 'number', 'small-text', array( 'min' => '128', 'max' => '4000', 'step' => '64' ) );
+	}
+
+	/**
+	 * Knowledge source mode.
+	 *
+	 * @return void
+	 */
+	public function render_source_mode() {
+		$current = WP_AI_Advisor_Settings::source_mode();
+
+		$modes = array(
+			'crawl' => array(
+				__( 'Crawl the site over HTTP', 'wp-ai-advisor' ),
+				__( 'Sees the site exactly as a visitor does, including rendered navigation. Needs the site to be reachable from the server.', 'wp-ai-advisor' ),
+			),
+			'local' => array(
+				__( 'Read posts from this WordPress install', 'wp-ai-advisor' ),
+				__( 'No HTTP requests and no page limit. Reaches unlinked pages a crawl would never find, but sees only post content, not theme-rendered menus.', 'wp-ai-advisor' ),
+			),
+			'both'  => array(
+				__( 'Both', 'wp-ai-advisor' ),
+				__( 'Crawl for navigation, local posts for completeness. Pages covered twice cost extra tokens to index and may return near-duplicate passages.', 'wp-ai-advisor' ),
+			),
+		);
+
+		echo '<fieldset>';
+
+		foreach ( $modes as $value => $mode ) {
+			printf(
+				'<label><input type="radio" name="%1$s" value="%2$s"%3$s /> <strong>%4$s</strong></label><p class="description" style="margin:0 0 .75rem 1.85rem;">%5$s</p>',
+				esc_attr( $this->name( 'source_mode' ) ),
+				esc_attr( $value ),
+				checked( $current, $value, false ),
+				esc_html( $mode[0] ),
+				esc_html( $mode[1] )
+			);
+		}
+
+		echo '</fieldset>';
+	}
+
+	/**
+	 * Post types indexed in local mode.
+	 *
+	 * @return void
+	 */
+	public function render_local_post_types() {
+		$selected   = WP_AI_Advisor_Settings::local_post_types();
+		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+
+		echo '<fieldset>';
+
+		foreach ( $post_types as $post_type ) {
+			if ( 'attachment' === $post_type->name ) {
+				continue;
+			}
+
+			printf(
+				'<label><input type="checkbox" name="%1$s[]" value="%2$s"%3$s /> %4$s</label><br />',
+				esc_attr( $this->name( 'local_post_types' ) ),
+				esc_attr( $post_type->name ),
+				checked( in_array( $post_type->name, $selected, true ), true, false ),
+				esc_html( $post_type->labels->name )
+			);
+		}
+
+		echo '</fieldset>';
+
+		$this->description( __( 'Only used in local mode. Published posts only; drafts, private and password-protected posts are skipped.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Crawl base URL.
+	 *
+	 * @return void
+	 */
+	public function render_site_url() {
+		$this->text_field( 'site_url', 'url', 'regular-text', array( 'placeholder' => home_url() ) );
+		$this->description( __( 'Leave blank to crawl this site. Only used in crawl mode.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Crawl page budget.
+	 *
+	 * @return void
+	 */
+	public function render_crawl_max_pages() {
+		$this->text_field( 'crawl_max_pages', 'number', 'small-text', array( 'min' => '1', 'max' => '2000' ) );
+		$this->description( __( 'Caps how many pages a crawl fetches. Each page costs an embedding call.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Crawl exclusions.
+	 *
+	 * @return void
+	 */
+	public function render_crawl_exclude() {
+		printf(
+			'<textarea id="wp_ai_advisor_crawl_exclude" name="%1$s" rows="4" class="large-text code">%2$s</textarea>',
+			esc_attr( $this->name( 'crawl_exclude' ) ),
+			esc_textarea( WP_AI_Advisor_Settings::get( 'crawl_exclude' ) )
+		);
+
+		$this->description( __( 'One fragment per line. Any URL containing one is skipped.', 'wp-ai-advisor' ) );
 	}
 
 	/**

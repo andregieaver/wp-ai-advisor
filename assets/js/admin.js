@@ -28,7 +28,7 @@
 		running = state;
 		stopped = false;
 
-		[ 'aiadv-crawl', 'aiadv-index', 'aiadv-clear', 'aiadv-test', 'aiadv-upload' ].forEach( function ( id ) {
+		[ 'aiadv-build', 'aiadv-crawl', 'aiadv-local', 'aiadv-index', 'aiadv-clear', 'aiadv-test', 'aiadv-upload' ].forEach( function ( id ) {
 			var button = byId( id );
 
 			if ( button ) {
@@ -123,22 +123,32 @@
 		} );
 	}
 
-	function crawl() {
-		setRunning( true );
-		log( strings.crawling.replace( '%s', '…' ) );
+	var PHASES = {
+		crawl: { step: '/crawl/step', label: 'crawling' },
+		local: { step: '/local/step', label: 'importing' }
+	};
 
-		call( '/crawl/start', {} )
-			.then( function ( data ) {
-				renderStats( data.stats );
+	/**
+	 * Runs the named collection phases in order, then embeds whatever they queued.
+	 */
+	function runPhases( phases ) {
+		var chain = Promise.resolve();
 
-				return loop( '/crawl/step', strings.crawling );
-			} )
+		phases.forEach( function ( name ) {
+			var phase = PHASES[ name ];
+
+			if ( ! phase ) {
+				return;
+			}
+
+			chain = chain.then( function () {
+				return stopped ? null : loop( phase.step, strings[ phase.label ] );
+			} );
+		} );
+
+		return chain
 			.then( function () {
-				if ( stopped ) {
-					return null;
-				}
-
-				return loop( '/index/step', strings.indexing );
+				return stopped ? null : loop( '/index/step', strings.indexing );
 			} )
 			.then( function () {
 				if ( ! stopped ) {
@@ -153,21 +163,48 @@
 			} );
 	}
 
-	function indexOnly() {
+	/**
+	 * Seeds every phase the configured source mode asks for, then runs them.
+	 */
+	function build() {
 		setRunning( true );
+		log( strings.preparing );
 
-		loop( '/index/step', strings.indexing )
-			.then( function () {
-				if ( ! stopped ) {
-					log( strings.done );
-					setRunning( false );
-					window.location.reload();
-				}
+		call( '/build/start', {} )
+			.then( function ( data ) {
+				renderStats( data.stats );
+
+				return runPhases( data.phases || [] );
 			} )
 			.catch( function ( error ) {
 				log( error.message || strings.failed );
 				setRunning( false );
 			} );
+	}
+
+	/**
+	 * Seeds and runs a single collection phase.
+	 */
+	function runOne( name, startPath ) {
+		setRunning( true );
+		log( strings.preparing );
+
+		call( startPath, {} )
+			.then( function ( data ) {
+				renderStats( data.stats );
+
+				return runPhases( [ name ] );
+			} )
+			.catch( function ( error ) {
+				log( error.message || strings.failed );
+				setRunning( false );
+			} );
+	}
+
+	function indexOnly() {
+		setRunning( true );
+
+		runPhases( [] );
 	}
 
 	function upload() {
@@ -211,7 +248,16 @@
 	}
 
 	document.addEventListener( 'DOMContentLoaded', function () {
-		bind( 'aiadv-crawl', crawl );
+		bind( 'aiadv-build', build );
+
+		bind( 'aiadv-crawl', function () {
+			runOne( 'crawl', '/crawl/start' );
+		} );
+
+		bind( 'aiadv-local', function () {
+			runOne( 'local', '/local/start' );
+		} );
+
 		bind( 'aiadv-index', indexOnly );
 		bind( 'aiadv-upload', upload );
 

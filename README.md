@@ -6,7 +6,7 @@ Questions outside that material are refused rather than answered from the model'
 
 ## How it works
 
-1. **Crawl.** The plugin fetches your site (sitemap first, then internal links), strips each page to readable text, and records the internal links it found.
+1. **Collect.** Either **crawl** the site over HTTP (sitemap first, then internal links), **read posts locally** from this WordPress install, or both. Each page is stripped to readable text, and its internal links are recorded.
 2. **Index.** That text is split into overlapping passages and embedded. Vectors are stored as binary blobs in a custom table.
 3. **Ask.** A visitor's question is embedded, matched against those vectors by cosine similarity, and the best passages are sent to the chat model as the only permitted source.
 4. **Answer.** The model returns structured JSON — the answer, whether it was actually grounded in the passages, suggested follow-ups, and links. Links are discarded unless the URL genuinely appears in the retrieved context, so the widget cannot show a URL the model invented.
@@ -22,7 +22,7 @@ Questions outside that material are refused rather than answered from the model'
 1. Copy this directory to `wp-content/plugins/wp-ai-advisor`.
 2. Activate **WP AI Advisor**.
 3. Go to **Settings → AI Advisor**, add your API key, and save.
-4. Open the **Knowledge base** tab and press **Crawl and index site**.
+4. Open the **Knowledge base** tab and press **Build knowledge base**.
 5. Put `[ai_advisor]` on a page.
 
 ### Keeping the key out of the database
@@ -51,9 +51,25 @@ The constant wins over the stored setting, and the admin field becomes read-only
 
 The container is fluid: it fills its parent up to `56rem`, drops from two columns to one below `48em`, and tightens its padding and controls below `30em`. Colours come from CSS custom properties on `.aiadv`, so a theme can override them without touching the stylesheet.
 
+## Choosing a knowledge source
+
+Set this under **Settings → AI Advisor → Knowledge source**.
+
+| Mode | Reads | Good for | Trade-off |
+| --- | --- | --- | --- |
+| **Crawl** (default) | The rendered site over HTTP | Seeing exactly what a visitor sees, including theme-rendered menus and anything a page builder outputs | Needs the site reachable from the server; bounded by the page limit; misses unlinked pages |
+| **Local** | Published posts from this install | Speed and completeness — no HTTP, no page budget, reaches pages nothing links to | Sees post content only, so theme-rendered navigation and non-post templates are invisible |
+| **Both** | Both of the above | Navigation from the crawl, completeness from the database | Pages covered twice cost extra to index and can return near-duplicate passages |
+
+Local mode indexes the post types you select, published only — drafts, private and password-protected posts are skipped. Content runs through `the_content` with the loop globals set up, so shortcodes and blocks resolve the way the theme renders them; title, excerpt and public taxonomy terms are indexed alongside the body. It is capped at 5000 posts.
+
+Neither mode updates itself. Re-run a build after the site changes.
+
 ## Settings
 
 **OpenAI connection** — API key, chat model (default `gpt-4o-mini`), embedding model (default `text-embedding-3-small`), temperature, max answer tokens.
+
+**Knowledge source** — mode, local post types, crawl base URL, page limit, and URL fragments to skip.
 
 **Answering**
 - *Restrict to site content* — on by default. Answers come only from indexed material; anything else gets your off-topic reply. Turn it off to let the model fall back on general knowledge.
@@ -68,11 +84,10 @@ The container is fluid: it fills its parent up to `56rem`, drops from two column
 
 ## Knowledge base tab
 
-- **Crawl and index site** — clears indexed pages, re-crawls, then embeds. One page per request, driven from the browser, so a large site cannot hit PHP's time limit. Progress is live and the run can be stopped.
+- **Build knowledge base** — runs whichever phases the mode calls for, then embeds. One source per request, driven from the browser, so a large site cannot hit PHP's time limit. Progress is live and the run can be stopped.
+- **Crawl only** / **Import local content only** — run a single phase, shown when the mode includes it. Each clears and rebuilds just its own sources; uploaded documents are never touched.
 - **Additional documents** — upload `.txt`, `.md`, `.csv`, `.json`, `.html`, `.docx`, `.pdf`. Useful for price lists or policies the website does not spell out.
-- **Sources table** — every page and document with its status, plus per-row delete.
-
-Re-crawl whenever the site changes; nothing updates the index automatically.
+- **Sources table** — every page, imported post and document with its status, plus per-row delete.
 
 ### PDF caveat
 
@@ -84,7 +99,10 @@ PDF text extraction is best-effort and built in — it reads Flate-compressed an
 | --- | --- | --- |
 | `/wp-json/wp-ai-advisor/v1/ask` | POST | Visitors (honours admin-only and the rate limit) |
 | `/wp-json/wp-ai-advisor/v1/status` | GET | `manage_options` |
-| `/wp-json/wp-ai-advisor/v1/crawl/start`, `/crawl/step`, `/index/step` | POST | `manage_options` |
+| `/wp-json/wp-ai-advisor/v1/build/start` | POST | `manage_options` |
+| `/wp-json/wp-ai-advisor/v1/crawl/start`, `/crawl/step` | POST | `manage_options` |
+| `/wp-json/wp-ai-advisor/v1/local/start`, `/local/step` | POST | `manage_options` |
+| `/wp-json/wp-ai-advisor/v1/index/step` | POST | `manage_options` |
 | `/wp-json/wp-ai-advisor/v1/documents` | POST | `manage_options` |
 | `/wp-json/wp-ai-advisor/v1/sources/delete`, `/clear`, `/test` | POST | `manage_options` |
 
@@ -109,6 +127,7 @@ All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, hi
 | `wp_ai_advisor_request_body` | filter | Adjust the chat completion request body. |
 | `wp_ai_advisor_is_visible` | filter | Decide whether the widget renders. |
 | `wp_ai_advisor_allowed_extensions` | filter | Change which document types may be uploaded. |
+| `wp_ai_advisor_local_post_ids` | filter | Change which posts local mode indexes. |
 | `wp_ai_advisor_answered` | action | Fires after a successful answer, with question, result and context. |
 
 ## Data
@@ -128,7 +147,7 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 php tests/logic-test.php
 ```
 
-Covers URL normalisation, vector maths, HTML and document text extraction, chunking, and settings sanitisation against stubbed WordPress functions. It does not cover anything needing a database or a live API.
+Covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, and settings sanitisation against stubbed WordPress functions. It does not cover anything needing a database or a live API.
 
 ## License
 

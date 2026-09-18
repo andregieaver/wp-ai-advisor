@@ -63,6 +63,25 @@ check( 'split returns nothing for empty text', $indexer->split( "   \n\n  ", 'X'
 $single = $indexer->split( str_repeat( 'a', 5000 ), '' );
 check( 'oversized single paragraph is split', count( $single ) > 1, true );
 
+// --- Shared text helpers ---------------------------------------------------
+check( 'tidy strips padding around line breaks', WP_AI_Advisor_Text::tidy( "  a  \n   \n\n\n  b  " ), "a\n\nb" );
+check( 'tidy normalises CRLF', WP_AI_Advisor_Text::tidy( "a\r\nb" ), "a\nb" );
+check( 'to_text drops style blocks', strpos( WP_AI_Advisor_Text::to_text( '<style>.x{color:red}</style><p>hei</p>' ), 'color' ), false );
+check( 'title returns empty when absent', WP_AI_Advisor_Text::title( '<p>no title</p>' ), '' );
+check( 'absolutize resolves root-relative', WP_AI_Advisor_Text::absolutize( '/a', 'https://example.test/b/c' ), 'https://example.test/a' );
+check( 'absolutize resolves document-relative', WP_AI_Advisor_Text::absolutize( 'd', 'https://example.test/b/c' ), 'https://example.test/b/d' );
+check( 'absolutize resolves protocol-relative', WP_AI_Advisor_Text::absolutize( '//cdn.test/x', 'https://example.test/' ), 'https://cdn.test/x' );
+check( 'absolutize leaves absolute untouched', WP_AI_Advisor_Text::absolutize( 'http://other.test/x', 'https://example.test/' ), 'http://other.test/x' );
+
+// --- Source mode -----------------------------------------------------------
+$modes = WP_AI_Advisor_Settings::sanitize( array( '_form' => 'settings', 'source_mode' => 'local', 'local_post_types' => array( 'page', 'nonsense' ) ) );
+check( 'source_mode accepted', $modes['source_mode'], 'local' );
+check( 'unknown post types dropped', $modes['local_post_types'], array( 'page' ) );
+
+$bad = WP_AI_Advisor_Settings::sanitize( array( '_form' => 'settings', 'source_mode' => 'wat' ) );
+check( 'unknown source_mode falls back', $bad['source_mode'], 'crawl' );
+check( 'unchecked post types clear the list', $bad['local_post_types'], array() );
+
 // --- Settings sanitisation -------------------------------------------------
 $clean = WP_AI_Advisor_Settings::sanitize( array(
 	'_form'       => 'settings',

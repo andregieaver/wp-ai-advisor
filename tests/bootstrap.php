@@ -96,6 +96,7 @@ function wp_parse_url( $url, $component = -1 ) { return -1 === $component ? pars
 function wp_parse_args( $args, $defaults ) { return array_merge( $defaults, (array) $args ); }
 function wp_json_encode( $value ) { return json_encode( $value ); }
 function absint( $value ) { return abs( (int) $value ); }
+function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
 function __( $text, $domain = '' ) { return $text; }
 function apply_filters( $tag, $value ) { return $value; }
 function get_bloginfo( $key ) { return 'Test Site'; }
@@ -110,6 +111,7 @@ $root = dirname( __DIR__ ) . '/includes/';
 
 require_once $root . 'class-wp-ai-advisor-settings.php';
 require_once $root . 'class-wp-ai-advisor-store.php';
+require_once $root . 'class-wp-ai-advisor-text.php';
 require_once $root . 'class-wp-ai-advisor-crawler.php';
 require_once $root . 'class-wp-ai-advisor-indexer.php';
 require_once $root . 'class-wp-ai-advisor-documents.php';

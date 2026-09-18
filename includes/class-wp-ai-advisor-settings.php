@@ -29,6 +29,8 @@ class WP_AI_Advisor_Settings {
 			'max_tokens'       => 800,
 
 			// Knowledge base.
+			'source_mode'      => 'crawl',
+			'local_post_types' => array( 'post', 'page' ),
 			'site_url'         => '',
 			'crawl_max_pages'  => 100,
 			'crawl_exclude'    => "/wp-admin/\n/cart/\n/checkout/\n/my-account/",
@@ -124,6 +126,41 @@ class WP_AI_Advisor_Settings {
 		$url = trim( (string) self::get( 'site_url', '' ) );
 
 		return $url ? untrailingslashit( $url ) : untrailingslashit( home_url() );
+	}
+
+	/**
+	 * How the knowledge base is built: 'crawl', 'local' or 'both'.
+	 *
+	 * @return string
+	 */
+	public static function source_mode() {
+		$mode = (string) self::get( 'source_mode', 'crawl' );
+
+		return in_array( $mode, array( 'crawl', 'local', 'both' ), true ) ? $mode : 'crawl';
+	}
+
+	/**
+	 * Whether a build phase runs under the current mode.
+	 *
+	 * @param string $phase 'crawl' or 'local'.
+	 * @return bool
+	 */
+	public static function uses( $phase ) {
+		$mode = self::source_mode();
+
+		return 'both' === $mode || $mode === $phase;
+	}
+
+	/**
+	 * Post types indexed in local content mode.
+	 *
+	 * @return string[]
+	 */
+	public static function local_post_types() {
+		$types = (array) self::get( 'local_post_types', array() );
+		$types = array_values( array_intersect( $types, get_post_types( array( 'public' => true ) ) ) );
+
+		return $types;
 	}
 
 	/**
@@ -244,6 +281,18 @@ class WP_AI_Advisor_Settings {
 
 		if ( isset( $input['max_tokens'] ) ) {
 			$output['max_tokens'] = max( 128, min( 4000, absint( $input['max_tokens'] ) ) );
+		}
+
+		if ( isset( $input['source_mode'] ) ) {
+			$mode                  = sanitize_key( $input['source_mode'] );
+			$output['source_mode'] = in_array( $mode, array( 'crawl', 'local', 'both' ), true ) ? $mode : $defaults['source_mode'];
+		}
+
+		if ( isset( $input['_form'] ) ) {
+			$types = isset( $input['local_post_types'] ) ? (array) $input['local_post_types'] : array();
+			$types = array_values( array_intersect( array_map( 'sanitize_key', $types ), get_post_types( array( 'public' => true ) ) ) );
+
+			$output['local_post_types'] = $types;
 		}
 
 		if ( isset( $input['site_url'] ) ) {

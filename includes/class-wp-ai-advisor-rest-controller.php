@@ -48,8 +48,11 @@ class WP_AI_Advisor_REST_Controller {
 		);
 
 		$admin_routes = array(
+			'/build/start'  => 'build_start',
 			'/crawl/start'  => 'crawl_start',
 			'/crawl/step'   => 'crawl_step',
+			'/local/start'  => 'local_start',
+			'/local/step'   => 'local_step',
 			'/index/step'   => 'index_step',
 			'/documents'    => 'upload_document',
 			'/sources/delete' => 'delete_source',
@@ -298,6 +301,70 @@ class WP_AI_Advisor_REST_Controller {
 	}
 
 	/**
+	 * Seeds every phase the configured source mode calls for.
+	 *
+	 * Returns the phases the caller should then step through, in order.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function build_start() {
+		$phases = array();
+
+		if ( WP_AI_Advisor_Settings::uses( 'crawl' ) ) {
+			( new WP_AI_Advisor_Crawler() )->start();
+
+			$phases[] = 'crawl';
+		}
+
+		if ( WP_AI_Advisor_Settings::uses( 'local' ) ) {
+			( new WP_AI_Advisor_Local_Content() )->start();
+
+			$phases[] = 'local';
+		}
+
+		return rest_ensure_response(
+			array(
+				'phases' => $phases,
+				'mode'   => WP_AI_Advisor_Settings::source_mode(),
+				'stats'  => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Clears imported local content and queues the current posts.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function local_start() {
+		$queued = ( new WP_AI_Advisor_Local_Content() )->start();
+
+		return rest_ensure_response(
+			array(
+				'queued' => $queued,
+				'stats'  => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Imports one queued local post.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function local_step() {
+		$result = ( new WP_AI_Advisor_Local_Content() )->import_next();
+
+		return rest_ensure_response(
+			array(
+				'done'  => null === $result,
+				'item'  => $result,
+				'stats' => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
 	 * Clears indexed pages and seeds the crawl frontier.
 	 *
 	 * @return WP_REST_Response
@@ -406,7 +473,7 @@ class WP_AI_Advisor_REST_Controller {
 	public function clear( WP_REST_Request $request ) {
 		$type = sanitize_key( (string) $request->get_param( 'type' ) );
 
-		WP_AI_Advisor_Store::clear( in_array( $type, array( 'page', 'document' ), true ) ? $type : '' );
+		WP_AI_Advisor_Store::clear( in_array( $type, array( 'page', 'local', 'document' ), true ) ? $type : '' );
 
 		return rest_ensure_response(
 			array(

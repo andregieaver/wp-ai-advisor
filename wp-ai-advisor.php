@@ -3,7 +3,7 @@
  * Plugin Name:       WP AI Advisor
  * Plugin URI:        https://github.com/andregieaver/wp-ai-advisor
  * Description:       An AI advisor powered by OpenAI that answers visitor questions from your own site content and uploaded documents.
- * Version:           0.2.0
+ * Version:           0.3.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Andre Gieaver
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WP_AI_ADVISOR_VERSION', '0.2.0' );
+define( 'WP_AI_ADVISOR_VERSION', '0.3.0' );
 define( 'WP_AI_ADVISOR_FILE', __FILE__ );
 define( 'WP_AI_ADVISOR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_AI_ADVISOR_URL', plugin_dir_url( __FILE__ ) );
@@ -25,7 +25,9 @@ define( 'WP_AI_ADVISOR_URL', plugin_dir_url( __FILE__ ) );
 require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-settings.php';
 require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-store.php';
 require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-openai-client.php';
+require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-text.php';
 require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-crawler.php';
+require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-local-content.php';
 require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-documents.php';
 require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-indexer.php';
 require_once WP_AI_ADVISOR_PATH . 'includes/class-wp-ai-advisor-rest-controller.php';

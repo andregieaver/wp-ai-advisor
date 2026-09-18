@@ -41,7 +41,7 @@ class WP_AI_Advisor_Crawler {
 	 * @return array|null Progress info, or null when the frontier is empty.
 	 */
 	public function crawl_next() {
-		$rows = WP_AI_Advisor_Store::next_by_status( WP_AI_Advisor_Store::STATUS_PENDING, 1 );
+		$rows = WP_AI_Advisor_Store::next_by_status( WP_AI_Advisor_Store::STATUS_PENDING, 1, WP_AI_Advisor_Store::TYPE_PAGE );
 
 		if ( empty( $rows ) ) {
 			return null;
@@ -121,11 +121,11 @@ class WP_AI_Advisor_Crawler {
 			return;
 		}
 
-		$base  = WP_AI_Advisor_Settings::site_url();
-		$stats = WP_AI_Advisor_Store::stats();
-		$max   = (int) WP_AI_Advisor_Settings::get( 'crawl_max_pages' );
+		$base = WP_AI_Advisor_Settings::site_url();
+		$max  = (int) WP_AI_Advisor_Settings::get( 'crawl_max_pages' );
 
-		$budget = $max - $stats['total'];
+		// Counted per type: local sources share this table but not this budget.
+		$budget = $max - WP_AI_Advisor_Store::count_by_type( WP_AI_Advisor_Store::TYPE_PAGE );
 
 		foreach ( $links as $link ) {
 			if ( $budget <= 0 ) {
@@ -259,111 +259,12 @@ class WP_AI_Advisor_Crawler {
 	 * @return array {title, content, links}
 	 */
 	public function extract( $html, $url ) {
-		$title = '';
-
-		if ( preg_match( '#<title[^>]*>(.*?)</title>#is', $html, $match ) ) {
-			$title = trim( html_entity_decode( wp_strip_all_tags( $match[1] ), ENT_QUOTES, 'UTF-8' ) );
-		}
-
-		$links = $this->extract_links( $html, $url );
-
-		// Drop chrome and code before flattening to text.
-		$text = preg_replace( '#<(script|style|noscript|svg|template)\b[^>]*>.*?</\1>#is', ' ', $html );
-		$text = preg_replace( '#<(nav|header|footer|form)\b[^>]*>.*?</\1>#is', ' ', $text );
-		$text = preg_replace( '#<!--.*?-->#s', ' ', $text );
-		$text = preg_replace( '#</(p|div|li|h[1-6]|section|article|tr|br)>#i', "\n", $text );
-		$text = wp_strip_all_tags( $text );
-		$text = html_entity_decode( $text, ENT_QUOTES, 'UTF-8' );
-		$text = preg_replace( '/\r\n?/u', "\n", $text );
-		$text = preg_replace( '/[ \t]+/u', ' ', $text );
-		// Drop the padding either side of a line break before collapsing blank lines.
-		$text = preg_replace( '/[ \t]*\n[ \t]*/u', "\n", $text );
-		$text = preg_replace( '/\n{3,}/u', "\n\n", $text );
+		$title = WP_AI_Advisor_Text::title( $html );
 
 		return array(
 			'title'   => $title ? $title : $url,
-			'content' => trim( (string) $text ),
-			'links'   => $links,
+			'content' => WP_AI_Advisor_Text::to_text( $html ),
+			'links'   => WP_AI_Advisor_Text::links( $html, $url, WP_AI_Advisor_Settings::site_url() ),
 		);
-	}
-
-	/**
-	 * Collects internal links with their anchor text.
-	 *
-	 * @param string $html HTML source.
-	 * @param string $url  Page URL.
-	 * @return array[] Each: label, url.
-	 */
-	private function extract_links( $html, $url ) {
-		if ( ! preg_match_all( '#<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>#is', $html, $matches, PREG_SET_ORDER ) ) {
-			return array();
-		}
-
-		$base  = WP_AI_Advisor_Settings::site_url();
-		$links = array();
-
-		foreach ( $matches as $match ) {
-			$href = html_entity_decode( trim( $match[1] ), ENT_QUOTES, 'UTF-8' );
-
-			if ( '' === $href || 0 === strpos( $href, '#' ) || preg_match( '#^(mailto:|tel:|javascript:|data:)#i', $href ) ) {
-				continue;
-			}
-
-			$absolute = WP_AI_Advisor_Store::normalize_url( $this->absolutize( $href, $url ) );
-
-			if ( '' === $absolute || 0 !== stripos( $absolute, $base ) ) {
-				continue;
-			}
-
-			$label = trim( html_entity_decode( wp_strip_all_tags( $match[2] ), ENT_QUOTES, 'UTF-8' ) );
-			$label = preg_replace( '/\s+/u', ' ', $label );
-
-			if ( '' === $label ) {
-				continue;
-			}
-
-			$links[ $absolute ] = array(
-				'label' => mb_substr( $label, 0, 80 ),
-				'url'   => $absolute,
-			);
-		}
-
-		return array_values( $links );
-	}
-
-	/**
-	 * Resolves a possibly relative href against the page URL.
-	 *
-	 * @param string $href Raw href.
-	 * @param string $url  Page URL.
-	 * @return string
-	 */
-	private function absolutize( $href, $url ) {
-		if ( preg_match( '#^https?://#i', $href ) ) {
-			return $href;
-		}
-
-		$parts  = wp_parse_url( $url );
-		$scheme = isset( $parts['scheme'] ) ? $parts['scheme'] : 'https';
-		$host   = isset( $parts['host'] ) ? $parts['host'] : '';
-
-		if ( ! $host ) {
-			return '';
-		}
-
-		$origin = $scheme . '://' . $host . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' );
-
-		if ( 0 === strpos( $href, '//' ) ) {
-			return $scheme . ':' . $href;
-		}
-
-		if ( 0 === strpos( $href, '/' ) ) {
-			return $origin . $href;
-		}
-
-		$path = isset( $parts['path'] ) ? $parts['path'] : '/';
-		$path = preg_replace( '#/[^/]*$#', '/', $path );
-
-		return $origin . $path . $href;
 	}
 }

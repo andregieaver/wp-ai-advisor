@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WP_AI_Advisor_Store {
 
-	const DB_VERSION       = '1';
+	const DB_VERSION       = '2';
 	const DB_VERSION_KEY   = 'wp_ai_advisor_db_version';
 	const STATUS_PENDING   = 'pending';
 	const STATUS_FETCHED   = 'fetched';
@@ -20,6 +20,7 @@ class WP_AI_Advisor_Store {
 	const STATUS_ERROR     = 'error';
 	const TYPE_PAGE        = 'page';
 	const TYPE_DOCUMENT    = 'document';
+	const TYPE_LOCAL       = 'local';
 
 	/**
 	 * Sources table name.
@@ -71,6 +72,7 @@ class WP_AI_Advisor_Store {
 			message text NOT NULL,
 			content_hash char(32) NOT NULL DEFAULT '',
 			depth tinyint(3) unsigned NOT NULL DEFAULT 0,
+			ref bigint(20) unsigned NOT NULL DEFAULT 0,
 			updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 			PRIMARY KEY  (id),
 			UNIQUE KEY url_hash (url_hash),
@@ -162,6 +164,60 @@ class WP_AI_Advisor_Store {
 		);
 
 		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Queues a local post for import.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $url     Permalink.
+	 * @param string $title   Post title.
+	 * @return int Source ID, or 0 when the post is already queued.
+	 */
+	public static function queue_post( $post_id, $url, $title ) {
+		global $wpdb;
+
+		$hash = md5( 'local:' . (int) $post_id );
+
+		$existing = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . self::sources_table() . ' WHERE url_hash = %s', $hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+
+		if ( $existing ) {
+			return 0;
+		}
+
+		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			self::sources_table(),
+			array(
+				'type'       => self::TYPE_LOCAL,
+				'url'        => self::normalize_url( $url ),
+				'url_hash'   => $hash,
+				'title'      => $title,
+				'content'    => '',
+				'links'      => '',
+				'status'     => self::STATUS_PENDING,
+				'message'    => '',
+				'depth'      => 0,
+				'ref'        => (int) $post_id,
+				'updated_at' => current_time( 'mysql' ),
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' )
+		);
+
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Counts sources of one type.
+	 *
+	 * @param string $type Source type.
+	 * @return int
+	 */
+	public static function count_by_type( $type ) {
+		global $wpdb;
+
+		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::sources_table() . ' WHERE type = %s', $type ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
 	}
 
 	/**
@@ -296,14 +352,29 @@ class WP_AI_Advisor_Store {
 	 *
 	 * @param string $status Status to match.
 	 * @param int    $limit  Maximum rows.
+	 * @param string $type   Optional type filter.
 	 * @return array[]
 	 */
-	public static function next_by_status( $status, $limit = 1 ) {
+	public static function next_by_status( $status, $limit = 1, $type = '' ) {
 		global $wpdb;
+
+		$table = self::sources_table();
+
+		if ( $type ) {
+			return (array) $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$wpdb->prepare(
+					"SELECT * FROM {$table} WHERE status = %s AND type = %s ORDER BY depth ASC, id ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$status,
+					$type,
+					(int) $limit
+				),
+				ARRAY_A
+			);
+		}
 
 		return (array) $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				'SELECT * FROM ' . self::sources_table() . ' WHERE status = %s ORDER BY depth ASC, id ASC LIMIT %d', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT * FROM {$table} WHERE status = %s ORDER BY depth ASC, id ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$status,
 				(int) $limit
 			),
