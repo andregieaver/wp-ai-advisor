@@ -85,6 +85,7 @@ class WP_AI_Advisor_Shortcode {
 				'placeholder' => $settings['placeholder'],
 				'theme'       => 'dark',
 				'open'        => 'no',
+				'lang'        => '',
 			),
 			$atts,
 			self::TAG
@@ -95,6 +96,9 @@ class WP_AI_Advisor_Shortcode {
 		$placeholder = '' !== trim( (string) $atts['placeholder'] ) ? $atts['placeholder'] : __( 'Write here …', 'wp-ai-advisor' );
 		$theme       = 'light' === $atts['theme'] ? 'light' : 'dark';
 		$open        = in_array( strtolower( (string) $atts['open'] ), array( 'yes', 'true', '1' ), true );
+
+		$language = WP_AI_Advisor_Language::normalize( $atts['lang'] );
+		$language = $language ? $language : WP_AI_Advisor_Language::current();
 
 		$suggestions = WP_AI_Advisor_Settings::suggestions();
 		$widget_id   = wp_unique_id( 'aiadv-' );
@@ -107,6 +111,8 @@ class WP_AI_Advisor_Shortcode {
 		<div
 			class="aiadv aiadv--<?php echo esc_attr( $theme ); ?><?php echo $open ? ' is-open' : ''; ?>"
 			id="<?php echo esc_attr( $widget_id ); ?>"
+			lang="<?php echo esc_attr( $language ); ?>"
+			data-language="<?php echo esc_attr( $language ); ?>"
 			style="--aiadv-accent: <?php echo esc_attr( $settings['accent'] ); ?>;"
 		>
 			<div class="aiadv__card">

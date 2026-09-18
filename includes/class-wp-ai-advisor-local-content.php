@@ -6,7 +6,8 @@
  * rendered navigation. This mode reads the database instead: no HTTP, no page
  * budget, and it reaches content a crawl would miss — drafts of new pages are
  * still excluded, but private post types, unlinked pages and posts behind a
- * slow front end are all indexable.
+ * slow front end are all indexable. On Polylang and WPML sites every
+ * translation is indexed, each tagged with its own language.
  *
  * @package WP_AI_Advisor
  */
@@ -45,6 +46,9 @@ class WP_AI_Advisor_Local_Content {
 				'no_found_rows'          => true,
 				'update_post_meta_cache' => false,
 				'update_post_term_cache' => false,
+				// Polylang scopes queries to the current language unless told otherwise;
+				// the knowledge base wants every translation.
+				'lang'                   => '',
 			)
 		);
 
@@ -123,7 +127,7 @@ class WP_AI_Advisor_Local_Content {
 	 * text a visitor would actually read.
 	 *
 	 * @param WP_Post $post Post object.
-	 * @return array {title, content, links}
+	 * @return array {title, content, links, language}
 	 */
 	public function extract( $post ) {
 		$title = get_the_title( $post );
@@ -147,9 +151,10 @@ class WP_AI_Advisor_Local_Content {
 		}
 
 		return array(
-			'title'   => $title ? $title : (string) get_permalink( $post ),
-			'content' => WP_AI_Advisor_Text::tidy( implode( "\n\n", array_filter( $parts ) ) ),
-			'links'   => WP_AI_Advisor_Text::links( $html, get_permalink( $post ), WP_AI_Advisor_Settings::site_url() ),
+			'title'    => $title ? $title : (string) get_permalink( $post ),
+			'content'  => WP_AI_Advisor_Text::tidy( implode( "\n\n", array_filter( $parts ) ) ),
+			'links'    => WP_AI_Advisor_Text::links( $html, get_permalink( $post ), WP_AI_Advisor_Settings::site_url() ),
+			'language' => WP_AI_Advisor_Language::of_post( $post->ID ),
 		);
 	}
 

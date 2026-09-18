@@ -51,6 +51,7 @@
 		this.close = root.querySelector( '.aiadv__close' );
 		this.history = [];
 		this.busy = false;
+		this.language = root.getAttribute( 'data-language' ) || '';
 	}
 
 	Widget.prototype.init = function () {
@@ -232,7 +233,8 @@
 				},
 				body: JSON.stringify( {
 					question: question,
-					history: this.history
+					history: this.history,
+					language: this.language
 				} )
 			} )
 			.then( function ( response ) {

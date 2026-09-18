@@ -42,6 +42,11 @@ class WP_AI_Advisor_REST_Controller {
 							'required' => false,
 							'default'  => array(),
 						),
+						'language' => array(
+							'type'     => 'string',
+							'required' => false,
+							'default'  => '',
+						),
 					),
 				),
 			)
@@ -173,6 +178,11 @@ class WP_AI_Advisor_REST_Controller {
 		$settings = WP_AI_Advisor_Settings::all();
 		$strict   = (bool) $settings['strict_mode'];
 
+		// The page the widget sits on decides the language, not the site locale:
+		// on a translated site those differ, and the visitor is reading the page.
+		$language = WP_AI_Advisor_Language::normalize( $request->get_param( 'language' ) );
+		$language = $language ? $language : WP_AI_Advisor_Language::current();
+
 		$this->record_request();
 
 		$client = new WP_AI_Advisor_OpenAI_Client();
@@ -195,22 +205,23 @@ class WP_AI_Advisor_REST_Controller {
 
 		$context = empty( $vectors[0] )
 			? array()
-			: WP_AI_Advisor_Store::search( $vectors[0], (int) $settings['top_k'], (float) $settings['min_score'] );
+			: WP_AI_Advisor_Store::search( $vectors[0], (int) $settings['top_k'], (float) $settings['min_score'], $language );
 
 		/**
 		 * Filters the retrieved context before it reaches the model.
 		 *
 		 * @param array  $context  Retrieved chunks.
 		 * @param string $question Visitor question.
+		 * @param string $language Language the answer will be given in.
 		 */
-		$context = apply_filters( 'wp_ai_advisor_context', $context, $question );
+		$context = apply_filters( 'wp_ai_advisor_context', $context, $question, $language );
 
 		// Nothing relevant indexed: refuse without spending a completion.
 		if ( empty( $context ) && $strict ) {
 			return rest_ensure_response( $this->refusal_payload() );
 		}
 
-		$result = $client->answer( $question, $context, $history );
+		$result = $client->answer( $question, $context, $history, $language );
 
 		if ( is_wp_error( $result ) ) {
 			$this->log_error( $result );
@@ -238,6 +249,7 @@ class WP_AI_Advisor_REST_Controller {
 				'followups' => ! empty( $result['followups'] ) ? $result['followups'] : array(),
 				'cta'       => $this->cta(),
 				'grounded'  => (bool) $result['grounded'],
+				'language'  => $language,
 			)
 		);
 	}
@@ -431,7 +443,11 @@ class WP_AI_Advisor_REST_Controller {
 			);
 		}
 
-		$result = ( new WP_AI_Advisor_Documents() )->handle_upload( $files['file'], 'file' );
+		$result = ( new WP_AI_Advisor_Documents() )->handle_upload(
+			$files['file'],
+			'file',
+			(string) $request->get_param( 'language' )
+		);
 
 		if ( is_wp_error( $result ) ) {
 			$result->add_data( array( 'status' => 400 ) );

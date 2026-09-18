@@ -37,6 +37,9 @@ class WP_AI_Advisor_Settings {
 			'top_k'            => 6,
 			'min_score'        => 0.20,
 
+			// Language.
+			'reply_language'   => 'auto',
+
 			// Grounding.
 			'strict_mode'      => true,
 			'refusal_message'  => '',
@@ -213,7 +216,7 @@ class WP_AI_Advisor_Settings {
 		if ( '' === $prompt ) {
 			$prompt = sprintf(
 				/* translators: 1: site name, 2: site URL. */
-				__( 'You are the assistant for %1$s (%2$s). Answer visitor questions using only the supplied site excerpts. Be brief, concrete and friendly, and answer in the language the visitor writes in.', 'wp-ai-advisor' ),
+				__( 'You are the assistant for %1$s (%2$s). Answer visitor questions using only the supplied site excerpts. Be brief, concrete and friendly.', 'wp-ai-advisor' ),
 				get_bloginfo( 'name' ),
 				self::site_url()
 			);
@@ -321,6 +324,17 @@ class WP_AI_Advisor_Settings {
 		if ( isset( $input['_form'] ) ) {
 			$output['strict_mode'] = ! empty( $input['strict_mode'] );
 			$output['admin_only']  = ! empty( $input['admin_only'] );
+		}
+
+		if ( isset( $input['reply_language'] ) ) {
+			$reply = sanitize_text_field( $input['reply_language'] );
+
+			if ( 'auto' === $reply || 'page' === $reply ) {
+				$output['reply_language'] = $reply;
+			} else {
+				$code                     = WP_AI_Advisor_Language::normalize( $reply );
+				$output['reply_language'] = $code ? $code : $defaults['reply_language'];
+			}
 		}
 
 		if ( isset( $input['refusal_message'] ) ) {

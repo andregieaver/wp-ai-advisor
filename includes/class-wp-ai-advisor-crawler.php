@@ -256,15 +256,17 @@ class WP_AI_Advisor_Crawler {
 	 *
 	 * @param string $html HTML source.
 	 * @param string $url  Page URL, used to resolve relative links.
-	 * @return array {title, content, links}
+	 * @return array {title, content, links, language}
 	 */
 	public function extract( $html, $url ) {
-		$title = WP_AI_Advisor_Text::title( $html );
+		$title    = WP_AI_Advisor_Text::title( $html );
+		$language = WP_AI_Advisor_Language::of_html( $html );
 
 		return array(
-			'title'   => $title ? $title : $url,
-			'content' => WP_AI_Advisor_Text::to_text( $html ),
-			'links'   => WP_AI_Advisor_Text::links( $html, $url, WP_AI_Advisor_Settings::site_url() ),
+			'title'    => $title ? $title : $url,
+			'content'  => WP_AI_Advisor_Text::to_text( $html ),
+			'links'    => WP_AI_Advisor_Text::links( $html, $url, WP_AI_Advisor_Settings::site_url() ),
+			'language' => $language ? $language : WP_AI_Advisor_Language::site(),
 		);
 	}
 }

@@ -50,6 +50,7 @@ class WP_AI_Advisor_OpenAI_Client {
 	 * @param string $question Visitor question.
 	 * @param array  $context  Retrieved chunks: title, url, content.
 	 * @param array  $history  Prior turns: role, content.
+	 * @param string $language Language of the page the widget is on.
 	 * @return array|WP_Error {
 	 *     @type string $answer    Reply text.
 	 *     @type bool   $grounded  Whether the answer came from the supplied context.
@@ -57,10 +58,12 @@ class WP_AI_Advisor_OpenAI_Client {
 	 *     @type array  $links     Navigation links: label, url.
 	 * }
 	 */
-	public function answer( $question, array $context, array $history = array() ) {
+	public function answer( $question, array $context, array $history = array(), $language = '' ) {
 		$settings = WP_AI_Advisor_Settings::all();
 
-		$system = WP_AI_Advisor_Settings::system_prompt() . "\n\n" . $this->grounding_rules( (bool) $settings['strict_mode'] );
+		$system = WP_AI_Advisor_Settings::system_prompt()
+			. "\n\n" . WP_AI_Advisor_Language::reply_instruction( $language )
+			. "\n\n" . $this->grounding_rules( (bool) $settings['strict_mode'] );
 
 		$messages = array( array( 'role' => 'system', 'content' => $system ) );
 
@@ -268,8 +271,9 @@ class WP_AI_Advisor_OpenAI_Client {
 			__( 'Use only the SITE CONTENT excerpts below. They are the only source you may draw facts from.', 'wp-ai-advisor' ),
 			__( 'Never invent prices, opening hours, addresses, phone numbers, availability or product details. If an excerpt does not state it, you do not know it.', 'wp-ai-advisor' ),
 			__( 'Set "grounded" to true only when the excerpts actually support your answer. Set it to false when they do not.', 'wp-ai-advisor' ),
-			__( 'In "links", return up to three URLs taken verbatim from the excerpt metadata that the visitor should read next. Never write a URL that does not appear there.', 'wp-ai-advisor' ),
-			__( 'In "followups", suggest up to three short questions the visitor could ask next, answerable from this site.', 'wp-ai-advisor' ),
+			__( 'In "links", return up to three URLs taken verbatim from the excerpt metadata that the visitor should read next. Never write a URL that does not appear there. Write each label in the same language as your answer.', 'wp-ai-advisor' ),
+			__( 'In "followups", suggest up to three short questions the visitor could ask next, answerable from this site. Write them in the same language as your answer.', 'wp-ai-advisor' ),
+			__( 'Excerpts may be in a different language from the question. Use them anyway and translate what you need; never tell the visitor the information was in another language.', 'wp-ai-advisor' ),
 		);
 
 		if ( $strict ) {
@@ -295,9 +299,10 @@ class WP_AI_Advisor_OpenAI_Client {
 
 		foreach ( $context as $chunk ) {
 			$blocks[] = sprintf(
-				"[%s]\nURL: %s\n%s",
+				"[%s]\nURL: %s\nLANGUAGE: %s\n%s",
 				isset( $chunk['title'] ) ? $chunk['title'] : '',
 				isset( $chunk['url'] ) ? $chunk['url'] : '',
+				! empty( $chunk['language'] ) ? $chunk['language'] : 'unknown',
 				isset( $chunk['content'] ) ? $chunk['content'] : ''
 			);
 		}

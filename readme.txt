@@ -1,10 +1,10 @@
 === WP AI Advisor ===
 Contributors: andregieaver
-Tags: ai, openai, chatbot, assistant, support
+Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,9 @@ Features:
 * Admin-only mode for testing on a live site
 * Per-visitor hourly rate limiting
 * API key can live in `wp-config.php` instead of the database
+* Fully translatable, with a Norwegian Bokmål translation included
+* Answers in the visitor's language, and prefers passages in that language
+* Polylang and WPML aware: every translation is indexed and tagged
 * Filters for the system prompt, retrieved context, and the outgoing request body
 
 == Installation ==
@@ -58,11 +61,31 @@ server and obeys a page limit. Local mode reads posts straight from the database
 unlimited, and it finds unlinked pages, but it cannot see theme-rendered navigation.
 Choose Both to get each one's strengths at the cost of some duplicate indexing.
 
+= Does it work on Norwegian sites? =
+
+Yes. A Norwegian Bokmål translation is included, so set WordPress to Norsk bokmål and the
+admin screens, the widget and the built-in prompts are all in Norwegian. The assistant
+replies in whatever language the visitor writes in by default.
+
+= Does it handle a site in several languages? =
+
+Yes. Each indexed page records its language, and a question gets answered from pages in
+that same language where possible. On Polylang and WPML sites every translation is
+indexed separately.
+
 = Can it read scanned PDFs? =
 
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.4.0 =
+* Added multilingual support: translatable throughout, with a Norwegian Bokmål translation.
+* Answers follow the visitor's language, configurable per site.
+* Indexed sources record their language; retrieval prefers the visitor's language.
+* Polylang and WPML translations are indexed and tagged individually.
+* Widget uses CSS logical properties so it mirrors in right-to-left locales.
+
 
 = 0.3.0 =
 * Added local content mode: index posts directly from WordPress, with crawl, local or both.

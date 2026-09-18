@@ -215,8 +215,13 @@
 		}
 
 		var data = new window.FormData();
+		var language = byId( 'aiadv-file-language' );
 
 		data.append( 'file', input.files[0] );
+
+		if ( language ) {
+			data.append( 'language', language.value );
+		}
 
 		setRunning( true );
 		log( strings.uploading );

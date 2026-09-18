@@ -51,11 +51,12 @@ class WP_AI_Advisor_Documents {
 	/**
 	 * Handles one uploaded file: stores it and queues its text for indexing.
 	 *
-	 * @param array  $file Entry from $_FILES, used for validation.
-	 * @param string $key  The $_FILES key the file arrived under.
-	 * @return array|WP_Error {id, title, characters}
+	 * @param array  $file     Entry from $_FILES, used for validation.
+	 * @param string $key      The $_FILES key the file arrived under.
+	 * @param string $language Language code for the document's contents.
+	 * @return array|WP_Error {id, title, characters, language}
 	 */
-	public function handle_upload( array $file, $key = 'file' ) {
+	public function handle_upload( array $file, $key = 'file', $language = '' ) {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -91,7 +92,9 @@ class WP_AI_Advisor_Documents {
 		}
 
 		$title     = sanitize_text_field( pathinfo( $file['name'], PATHINFO_FILENAME ) );
-		$source_id = WP_AI_Advisor_Store::put_document( $title, $text, (string) $attachment_id );
+		$language  = WP_AI_Advisor_Language::normalize( $language );
+		$language  = $language ? $language : WP_AI_Advisor_Language::site();
+		$source_id = WP_AI_Advisor_Store::put_document( $title, $text, (string) $attachment_id, $language );
 
 		update_post_meta( $attachment_id, '_wp_ai_advisor_source_id', $source_id );
 
@@ -99,6 +102,7 @@ class WP_AI_Advisor_Documents {
 			'id'         => $source_id,
 			'title'      => $title,
 			'characters' => mb_strlen( $text ),
+			'language'   => $language,
 		);
 	}
 

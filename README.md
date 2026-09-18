@@ -2,6 +2,8 @@
 
 A WordPress plugin that adds an "ask us anything" conversation panel to any page. It answers visitor questions using **your own site content** — crawled from the site itself, plus any documents you upload — through the OpenAI API.
 
+Fully translatable, and shipped with a Norwegian Bokmål translation.
+
 Questions outside that material are refused rather than answered from the model's general knowledge.
 
 ## How it works
@@ -43,6 +45,7 @@ The constant wins over the stored setting, and the admin field becomes read-only
 
 | Attribute | Default | Description |
 | --- | --- | --- |
+| `lang` | page language | Overrides the language the widget reports, e.g. `lang="nb"`. |
 | `eyebrow` | from settings | Small uppercase label above the heading. |
 | `heading` | from settings | Headline on the collapsed card. |
 | `placeholder` | from settings | Composer placeholder. |
@@ -50,6 +53,37 @@ The constant wins over the stored setting, and the admin field becomes read-only
 | `open` | `no` | `yes` renders the panel already open. |
 
 The container is fluid: it fills its parent up to `56rem`, drops from two columns to one below `48em`, and tightens its padding and controls below `30em`. Colours come from CSS custom properties on `.aiadv`, so a theme can override them without touching the stylesheet.
+
+## Languages
+
+The plugin is multilingual in three separate senses, and it is worth keeping them apart.
+
+**1. The plugin's own interface.** Every string goes through WordPress i18n against the `wp-ai-advisor` text domain. A complete Norwegian Bokmål translation (`nb_NO`) ships in `languages/`, covering the admin screens, the widget, and the built-in prompt text. Set WordPress to Norsk bokmål and it loads automatically. `languages/wp-ai-advisor.pot` is there for any other locale.
+
+**2. What language the assistant answers in.** Set under **Settings → AI Advisor → Language**:
+
+| Setting | Behaviour |
+| --- | --- |
+| **Match the visitor** (default) | Answers in the language the question was written in. Falls back to the language of the page the widget sits on. |
+| **Always use the language of the page** | Ignores the question's language. Useful when you want one consistent voice. |
+| **A specific language** | Always answers in that language, whatever is asked. |
+
+The widget reports its own language to the endpoint via `lang` on the container, so on a translated site the Norwegian page and the English page behave differently without any extra configuration. Follow-up chips and link labels are written in the same language as the answer.
+
+**3. Multilingual content.** Every indexed source records the language it is in — from `<html lang>` when crawling, from Polylang or WPML when importing locally, and from the dropdown when uploading a document. Retrieval then prefers passages in the visitor's language: a Norwegian question is answered from Norwegian pages rather than the English translation of the same page. If nothing in that language clears the relevance threshold, every language is reconsidered rather than refusing, and the model is told to translate what it needs instead of switching language mid-answer.
+
+On Polylang and WPML sites, local mode indexes **every** translation, each tagged with its own language. Sources indexed before this version carry no language and stay eligible for every question — rebuild the knowledge base to tag them.
+
+### Adding another translation
+
+```bash
+cp languages/wp-ai-advisor.pot languages/wp-ai-advisor-nn_NO.po   # then translate it
+python3 bin/po2mo.py languages/wp-ai-advisor-nn_NO.po
+```
+
+`python3 bin/make-pot.py` regenerates the POT after you add or change strings; it exits non-zero and names the offenders if any string has the wrong text domain or is not a plain literal. Norwegian Nynorsk is **not** included — Bokmål is not a substitute for it, so it is left to a Nynorsk speaker rather than guessed at.
+
+The widget uses CSS logical properties throughout, so it mirrors correctly in right-to-left locales without a separate stylesheet.
 
 ## Choosing a knowledge source
 
@@ -75,6 +109,8 @@ Neither mode updates itself. Re-run a build after the site changes.
 - *Restrict to site content* — on by default. Answers come only from indexed material; anything else gets your off-topic reply. Turn it off to let the model fall back on general knowledge.
 - *Off-topic reply*, *system prompt* — both optional, both have sensible defaults.
 - *Context passages* (`top_k`) and *relevance threshold* (`min_score`) — raise the threshold if answers drift, lower it if the advisor refuses too readily.
+
+**Language** — reply language.
 
 **Access**
 - *Admin-only* — the widget renders for administrators only, **and** the REST endpoint refuses everyone else. Safe for testing on a live site.
@@ -106,7 +142,7 @@ PDF text extraction is best-effort and built in — it reads Flate-compressed an
 | `/wp-json/wp-ai-advisor/v1/documents` | POST | `manage_options` |
 | `/wp-json/wp-ai-advisor/v1/sources/delete`, `/clear`, `/test` | POST | `manage_options` |
 
-All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, history}` and returns:
+All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, history, language}` and returns:
 
 ```json
 {
@@ -114,7 +150,8 @@ All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, hi
   "links": [{ "label": "Menu", "url": "https://example.com/menu" }],
   "followups": ["…"],
   "cta": { "label": "Book a table", "url": "https://example.com/book" },
-  "grounded": true
+  "grounded": true,
+  "language": "nb"
 }
 ```
 
@@ -147,7 +184,7 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 php tests/logic-test.php
 ```
 
-Covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, and settings sanitisation against stubbed WordPress functions. It does not cover anything needing a database or a live API.
+Covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API.
 
 ## License
 

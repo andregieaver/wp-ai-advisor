@@ -129,6 +129,7 @@ class WP_AI_Advisor_Admin {
 			'api'        => __( 'OpenAI connection', 'wp-ai-advisor' ),
 			'sources'    => __( 'Knowledge source', 'wp-ai-advisor' ),
 			'grounding'  => __( 'Answering', 'wp-ai-advisor' ),
+			'language'   => __( 'Language', 'wp-ai-advisor' ),
 			'access'     => __( 'Access', 'wp-ai-advisor' ),
 			'appearance' => __( 'Appearance', 'wp-ai-advisor' ),
 		);
@@ -160,6 +161,8 @@ class WP_AI_Advisor_Admin {
 			array( 'system_prompt', __( 'System prompt', 'wp-ai-advisor' ), 'render_system_prompt', 'grounding' ),
 			array( 'top_k', __( 'Context passages', 'wp-ai-advisor' ), 'render_top_k', 'grounding' ),
 			array( 'min_score', __( 'Relevance threshold', 'wp-ai-advisor' ), 'render_min_score', 'grounding' ),
+
+			array( 'reply_language', __( 'Reply language', 'wp-ai-advisor' ), 'render_reply_language', 'language' ),
 
 			array( 'admin_only', __( 'Admin-only', 'wp-ai-advisor' ), 'render_admin_only', 'access' ),
 			array( 'rate_limit', __( 'Questions per hour', 'wp-ai-advisor' ), 'render_rate_limit', 'access' ),
@@ -258,6 +261,10 @@ class WP_AI_Advisor_Admin {
 			<span><?php esc_html_e( 'Waiting', 'wp-ai-advisor' ); ?>: <strong data-stat="pending"><?php echo (int) $stats['pending'] + (int) $stats['fetched']; ?></strong></span>
 			<span><?php esc_html_e( 'Failed', 'wp-ai-advisor' ); ?>: <strong data-stat="error"><?php echo (int) $stats['error']; ?></strong></span>
 			<span><?php esc_html_e( 'Passages', 'wp-ai-advisor' ); ?>: <strong data-stat="chunks"><?php echo (int) $stats['chunks']; ?></strong></span>
+			<?php $languages = WP_AI_Advisor_Language::indexed(); ?>
+			<?php if ( $languages ) : ?>
+				<span><?php esc_html_e( 'Languages', 'wp-ai-advisor' ); ?>: <strong><?php echo esc_html( implode( ', ', $languages ) ); ?></strong></span>
+			<?php endif; ?>
 		</div>
 
 		<p class="aiadv-admin__actions">
@@ -288,6 +295,15 @@ class WP_AI_Advisor_Admin {
 		</p>
 		<p>
 			<input type="file" id="aiadv-file" accept=".txt,.md,.markdown,.csv,.json,.html,.htm,.docx,.pdf" />
+			<label for="aiadv-file-language" class="screen-reader-text"><?php esc_html_e( 'Document language', 'wp-ai-advisor' ); ?></label>
+			<select id="aiadv-file-language">
+				<?php $site_language = WP_AI_Advisor_Language::site(); ?>
+				<?php foreach ( WP_AI_Advisor_Language::names() as $code => $name ) : ?>
+					<option value="<?php echo esc_attr( $code ); ?>"<?php selected( $site_language, $code ); ?>>
+						<?php echo esc_html( $name ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
 			<button type="button" class="button" id="aiadv-upload"><?php esc_html_e( 'Upload and index', 'wp-ai-advisor' ); ?></button>
 		</p>
 
@@ -297,6 +313,7 @@ class WP_AI_Advisor_Admin {
 				<tr>
 					<th><?php esc_html_e( 'Title', 'wp-ai-advisor' ); ?></th>
 					<th><?php esc_html_e( 'Type', 'wp-ai-advisor' ); ?></th>
+					<th><?php esc_html_e( 'Language', 'wp-ai-advisor' ); ?></th>
 					<th><?php esc_html_e( 'Status', 'wp-ai-advisor' ); ?></th>
 					<th><?php esc_html_e( 'Updated', 'wp-ai-advisor' ); ?></th>
 					<th></th>
@@ -305,7 +322,7 @@ class WP_AI_Advisor_Admin {
 			<tbody>
 				<?php if ( empty( $sources ) ) : ?>
 					<tr>
-						<td colspan="5"><?php esc_html_e( 'Nothing indexed yet.', 'wp-ai-advisor' ); ?></td>
+						<td colspan="6"><?php esc_html_e( 'Nothing indexed yet.', 'wp-ai-advisor' ); ?></td>
 					</tr>
 				<?php else : ?>
 					<?php foreach ( $sources as $source ) : ?>
@@ -320,6 +337,7 @@ class WP_AI_Advisor_Admin {
 								<?php endif; ?>
 							</td>
 							<td><?php echo esc_html( $source['type'] ); ?></td>
+							<td><?php echo esc_html( $source['language'] ? $source['language'] : '—' ); ?></td>
 							<td>
 								<?php echo esc_html( $source['status'] ); ?>
 								<?php if ( $source['message'] ) : ?>
@@ -669,6 +687,46 @@ class WP_AI_Advisor_Admin {
 	public function render_min_score() {
 		$this->text_field( 'min_score', 'number', 'small-text', array( 'min' => '0', 'max' => '1', 'step' => '0.05' ) );
 		$this->description( __( 'Passages scoring below this are ignored. Raise it if answers drift, lower it if the advisor refuses too often.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Reply language selector.
+	 *
+	 * @return void
+	 */
+	public function render_reply_language() {
+		$current = (string) WP_AI_Advisor_Settings::get( 'reply_language', 'auto' );
+
+		$options = array(
+			'auto' => __( 'Match the visitor (recommended)', 'wp-ai-advisor' ),
+			'page' => __( 'Always use the language of the page', 'wp-ai-advisor' ),
+		);
+
+		foreach ( WP_AI_Advisor_Language::names() as $code => $name ) {
+			/* translators: 1: language name, 2: language code. */
+			$options[ $code ] = sprintf( __( 'Always %1$s (%2$s)', 'wp-ai-advisor' ), $name, $code );
+		}
+
+		echo '<select id="wp_ai_advisor_reply_language" name="' . esc_attr( $this->name( 'reply_language' ) ) . '">';
+
+		foreach ( $options as $value => $label ) {
+			printf(
+				'<option value="%1$s"%2$s>%3$s</option>',
+				esc_attr( $value ),
+				selected( $current, $value, false ),
+				esc_html( $label )
+			);
+		}
+
+		echo '</select>';
+
+		$this->description(
+			sprintf(
+				/* translators: %s: language name of the WordPress install. */
+				__( 'This site runs in %s. On a translated site the widget reports the language of the page it sits on, which is what "match the visitor" falls back to.', 'wp-ai-advisor' ),
+				WP_AI_Advisor_Language::name( WP_AI_Advisor_Language::site() )
+			)
+		);
 	}
 
 	/**

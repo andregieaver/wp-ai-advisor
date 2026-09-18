@@ -9,6 +9,62 @@
 
 require_once __DIR__ . '/bootstrap.php';
 
+/**
+ * Reads a compiled .mo into {msgid: msgstr}.
+ *
+ * @param string $path Path to the .mo file.
+ * @return array
+ */
+function wp_ai_advisor_read_mo( $path ) {
+	$data = (string) file_get_contents( $path );
+
+	if ( strlen( $data ) < 20 || 0x950412de !== unpack( 'V', substr( $data, 0, 4 ) )[1] ) {
+		return array();
+	}
+
+	$header = unpack( 'Vrev/Vcount/Vokeys/Vovals', substr( $data, 4, 16 ) );
+	$out    = array();
+
+	for ( $i = 0; $i < $header['count']; $i++ ) {
+		$key   = unpack( 'Vlen/Voff', substr( $data, $header['okeys'] + $i * 8, 8 ) );
+		$value = unpack( 'Vlen/Voff', substr( $data, $header['ovals'] + $i * 8, 8 ) );
+
+		$out[ substr( $data, $key['off'], $key['len'] ) ] = substr( $data, $value['off'], $value['len'] );
+	}
+
+	return $out;
+}
+
+/**
+ * Reads the msgids out of a .pot file.
+ *
+ * @param string $path Path to the .pot file.
+ * @return string[]
+ */
+function wp_ai_advisor_read_pot( $path ) {
+	$out = array();
+
+	foreach ( file( $path ) as $line ) {
+		if ( 0 !== strpos( $line, 'msgid "' ) ) {
+			continue;
+		}
+
+		$msgid = substr( trim( $line ), 7, -1 );
+
+		if ( '' === $msgid ) {
+			continue;
+		}
+
+		$out[] = str_replace(
+			array( '\\"', '\\n', '\\t', '\\\\' ),
+			array( '"', "\n", "\t", '\\' ),
+			$msgid
+		);
+	}
+
+	return $out;
+}
+
 $pass = 0; $fail = 0;
 function check( $label, $got, $want ) {
 	global $pass, $fail;
@@ -101,6 +157,77 @@ check( 'suggestions split and trimmed', $clean['suggestions'], array( 'Hva koste
 check( 'checkbox read when form marker present', $clean['strict_mode'], true );
 check( 'admin_only defaults off when unchecked', $clean['admin_only'], false );
 check( 'blank api_key keeps stored key', $clean['api_key'], '' );
+
+// --- Language detection ----------------------------------------------------
+check( 'normalize drops region', WP_AI_Advisor_Language::normalize( 'nb_NO' ), 'nb' );
+check( 'normalize handles hyphenated tags', WP_AI_Advisor_Language::normalize( 'pt-BR' ), 'pt' );
+check( 'normalize lowercases', WP_AI_Advisor_Language::normalize( 'NB' ), 'nb' );
+check( 'normalize rejects junk', WP_AI_Advisor_Language::normalize( '12345' ), '' );
+check( 'normalize handles empty input', WP_AI_Advisor_Language::normalize( '' ), '' );
+check( 'of_html reads the lang attribute', WP_AI_Advisor_Language::of_html( '<html lang="nb-NO"><body>x</body></html>' ), 'nb' );
+check( 'of_html copes with extra attributes', WP_AI_Advisor_Language::of_html( '<html dir="ltr" lang="nn" class="x">' ), 'nn' );
+check( 'of_html returns empty when absent', WP_AI_Advisor_Language::of_html( '<html><body>x</body></html>' ), '' );
+check( 'name resolves known codes', WP_AI_Advisor_Language::name( 'nb_NO' ), 'Norwegian Bokmål' );
+check( 'name passes unknown codes through', WP_AI_Advisor_Language::name( 'xyz' ), 'xyz' );
+
+$GLOBALS['wp_ai_advisor_test_locale'] = 'nb_NO';
+check( 'site language comes from the locale', WP_AI_Advisor_Language::site(), 'nb' );
+
+$lang = WP_AI_Advisor_Settings::sanitize( array( '_form' => 'settings', 'reply_language' => 'nn_NO' ) );
+check( 'reply_language normalised to a code', $lang['reply_language'], 'nn' );
+check( 'reply_language accepts auto', WP_AI_Advisor_Settings::sanitize( array( 'reply_language' => 'auto' ) )['reply_language'], 'auto' );
+check( 'reply_language accepts page', WP_AI_Advisor_Settings::sanitize( array( 'reply_language' => 'page' ) )['reply_language'], 'page' );
+check( 'reply_language rejects junk', WP_AI_Advisor_Settings::sanitize( array( 'reply_language' => '!!' ) )['reply_language'], 'auto' );
+$GLOBALS['wp_ai_advisor_test_locale'] = 'en_US';
+
+// --- Translation coverage --------------------------------------------------
+$pot = dirname( __DIR__ ) . '/languages/wp-ai-advisor.pot';
+$mo  = dirname( __DIR__ ) . '/languages/wp-ai-advisor-nb_NO.mo';
+
+check( 'POT file exists', file_exists( $pot ), true );
+check( 'nb_NO catalogue exists', file_exists( $mo ), true );
+
+if ( file_exists( $pot ) && file_exists( $mo ) ) {
+	$translations = wp_ai_advisor_read_mo( $mo );
+	$msgids       = wp_ai_advisor_read_pot( $pot );
+
+	check( 'POT has strings', count( $msgids ) > 100, true );
+
+	$untranslated = array();
+
+	foreach ( $msgids as $msgid ) {
+		if ( empty( $translations[ $msgid ] ) ) {
+			$untranslated[] = $msgid;
+		}
+	}
+
+	check(
+		'every POT string has a Norwegian translation',
+		$untranslated,
+		array(),
+	);
+
+	// A translation that loses a printf placeholder throws a fatal at runtime.
+	$broken = array();
+
+	foreach ( $msgids as $msgid ) {
+		if ( empty( $translations[ $msgid ] ) ) {
+			continue;
+		}
+
+		preg_match_all( '/%(?:\\d+\\$)?[sd]/', $msgid, $want );
+		preg_match_all( '/%(?:\\d+\\$)?[sd]/', $translations[ $msgid ], $got );
+
+		sort( $want[0] );
+		sort( $got[0] );
+
+		if ( $want[0] !== $got[0] ) {
+			$broken[] = $msgid;
+		}
+	}
+
+	check( 'placeholders survive translation', $broken, array() );
+}
 
 // --- Document text extraction ---------------------------------------------
 $docs = new WP_AI_Advisor_Documents();
