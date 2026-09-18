@@ -33,7 +33,7 @@
 			stopped = false;
 		}
 
-		[ 'aiadv-build', 'aiadv-crawl', 'aiadv-local', 'aiadv-resume', 'aiadv-retry', 'aiadv-clear', 'aiadv-test', 'aiadv-upload' ].forEach( function ( id ) {
+		[ 'aiadv-build', 'aiadv-crawl', 'aiadv-local', 'aiadv-resume', 'aiadv-retry', 'aiadv-clear', 'aiadv-test', 'aiadv-upload', 'aiadv-bulk-apply', 'aiadv-dedupe' ].forEach( function ( id ) {
 			var button = byId( id );
 
 			if ( button ) {
@@ -320,6 +320,47 @@
 			} );
 	}
 
+	function selectedIds() {
+		return Array.prototype.slice
+			.call( document.querySelectorAll( '.aiadv-admin__select:checked' ) )
+			.map( function ( box ) {
+				return box.value;
+			} );
+	}
+
+	function updateSelectedCount() {
+		var node = byId( 'aiadv-selected' );
+
+		if ( node ) {
+			var count = selectedIds().length;
+
+			node.textContent = count ? strings.selected.replace( '%d', count ) : '';
+		}
+	}
+
+	function applyBulk( action, ids, confirmMessage ) {
+		if ( ! ids.length ) {
+			log( strings.nothingSelected );
+
+			return;
+		}
+
+		if ( confirmMessage && ! window.confirm( confirmMessage.replace( '%d', ids.length ) ) ) {
+			return;
+		}
+
+		setRunning( true );
+
+		call( '/sources/bulk', { action: action, ids: ids } )
+			.then( function () {
+				window.location.reload();
+			} )
+			.catch( function ( error ) {
+				log( error.message || strings.failed );
+				setRunning( false );
+			} );
+	}
+
 	function bind( id, handler ) {
 		var button = byId( id );
 
@@ -341,6 +382,48 @@
 
 		bind( 'aiadv-resume', resume );
 		bind( 'aiadv-retry', retryFailed );
+
+		bind( 'aiadv-bulk-apply', function () {
+			var action = byId( 'aiadv-bulk-action' );
+
+			if ( ! action || ! action.value ) {
+				log( strings.nothingSelected );
+
+				return;
+			}
+
+			applyBulk(
+				action.value,
+				selectedIds(),
+				'delete' === action.value ? strings.confirmDelete : null
+			);
+		} );
+
+		bind( 'aiadv-dedupe', function () {
+			applyBulk( 'duplicates', [ 'all' ], strings.confirmDuplicates );
+		} );
+
+		var selectAll = byId( 'aiadv-select-all' );
+
+		if ( selectAll ) {
+			selectAll.addEventListener( 'change', function () {
+				Array.prototype.forEach.call(
+					document.querySelectorAll( '.aiadv-admin__select' ),
+					function ( box ) {
+						box.checked = selectAll.checked;
+					}
+				);
+
+				updateSelectedCount();
+			} );
+		}
+
+		Array.prototype.forEach.call(
+			document.querySelectorAll( '.aiadv-admin__select' ),
+			function ( box ) {
+				box.addEventListener( 'change', updateSelectedCount );
+			}
+		);
 		bind( 'aiadv-upload', upload );
 
 		bind( 'aiadv-stop', function () {

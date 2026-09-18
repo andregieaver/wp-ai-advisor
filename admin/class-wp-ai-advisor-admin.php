@@ -97,6 +97,10 @@ class WP_AI_Advisor_Admin {
 					'preparing'  => __( 'Preparing…', 'wp-ai-advisor' ),
 					'retrying'   => __( 'Retrying after: %s', 'wp-ai-advisor' ),
 					'resumeHint' => __( 'Nothing was lost — press Resume to carry on from here.', 'wp-ai-advisor' ),
+					'selected'   => __( '%d selected', 'wp-ai-advisor' ),
+					'nothingSelected' => __( 'Choose an action and at least one source first.', 'wp-ai-advisor' ),
+					'confirmDelete'   => __( 'Delete %d sources from the knowledge base?', 'wp-ai-advisor' ),
+					'confirmDuplicates' => __( 'Delete every duplicate source? One copy of each URL is kept.', 'wp-ai-advisor' ),
 					'crawling'   => __( 'Crawling %s', 'wp-ai-advisor' ),
 					'importing'  => __( 'Importing %s', 'wp-ai-advisor' ),
 					'indexing'   => __( 'Indexing %s', 'wp-ai-advisor' ),
@@ -157,6 +161,8 @@ class WP_AI_Advisor_Admin {
 			array( 'site_url', __( 'Site URL to crawl', 'wp-ai-advisor' ), 'render_site_url', 'sources' ),
 			array( 'crawl_max_pages', __( 'Maximum pages', 'wp-ai-advisor' ), 'render_crawl_max_pages', 'sources' ),
 			array( 'crawl_exclude', __( 'Skip URLs containing', 'wp-ai-advisor' ), 'render_crawl_exclude', 'sources' ),
+			array( 'skip_crawled', __( 'Avoid duplicates', 'wp-ai-advisor' ), 'render_skip_crawled', 'sources' ),
+			array( 'render_filters', __( 'Render with theme filters', 'wp-ai-advisor' ), 'render_render_filters', 'sources' ),
 
 			array( 'strict_mode', __( 'Restrict to site content', 'wp-ai-advisor' ), 'render_strict_mode', 'grounding' ),
 			array( 'refusal_message', __( 'Off-topic reply', 'wp-ai-advisor' ), 'render_refusal_message', 'grounding' ),
@@ -256,9 +262,23 @@ class WP_AI_Advisor_Admin {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only table filter.
 		$filter = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
-		$filter = in_array( $filter, array( 'pending', 'fetched', 'indexed', 'error' ), true ) ? $filter : '';
+		$filter = in_array( $filter, array( 'pending', 'fetched', 'indexed', 'error', 'duplicates' ), true ) ? $filter : '';
 
-		$sources = WP_AI_Advisor_Store::list_sources( '', $filter );
+		$duplicates = WP_AI_Advisor_Store::duplicate_ids();
+
+		if ( 'duplicates' === $filter ) {
+			$lookup  = array_flip( $duplicates );
+			$sources = array_values(
+				array_filter(
+					WP_AI_Advisor_Store::list_sources(),
+					static function ( $source ) use ( $lookup ) {
+						return isset( $lookup[ (int) $source['id'] ] );
+					}
+				)
+			);
+		} else {
+			$sources = WP_AI_Advisor_Store::list_sources( '', $filter );
+		}
 		?>
 		<p class="description"><?php echo esc_html( $this->source_summary() ); ?></p>
 
@@ -328,6 +348,7 @@ class WP_AI_Advisor_Admin {
 				'pending' => array( __( 'To fetch', 'wp-ai-advisor' ), $stats['pending'] ),
 				'fetched' => array( __( 'To index', 'wp-ai-advisor' ), $stats['fetched'] ),
 				'indexed' => array( __( 'Indexed', 'wp-ai-advisor' ), $stats['indexed'] ),
+				'duplicates' => array( __( 'Duplicates', 'wp-ai-advisor' ), count( $duplicates ) ),
 			);
 			$last    = array_key_last( $filters );
 			?>
@@ -345,9 +366,33 @@ class WP_AI_Advisor_Admin {
 			<?php endforeach; ?>
 		</ul>
 
+		<div class="tablenav top aiadv-admin__bulk">
+			<select id="aiadv-bulk-action">
+				<option value=""><?php esc_html_e( 'Bulk actions', 'wp-ai-advisor' ); ?></option>
+				<option value="requeue"><?php esc_html_e( 'Queue for crawling again', 'wp-ai-advisor' ); ?></option>
+				<option value="delete"><?php esc_html_e( 'Delete', 'wp-ai-advisor' ); ?></option>
+			</select>
+			<button type="button" class="button" id="aiadv-bulk-apply"><?php esc_html_e( 'Apply', 'wp-ai-advisor' ); ?></button>
+			<span class="aiadv-admin__selected" id="aiadv-selected"></span>
+			<?php if ( ! empty( $duplicates ) ) : ?>
+				<button type="button" class="button button-link-delete" id="aiadv-dedupe">
+					<?php
+					printf(
+						/* translators: %d: number of duplicate sources. */
+						esc_html__( 'Delete all %d duplicates', 'wp-ai-advisor' ),
+						count( $duplicates )
+					);
+					?>
+				</button>
+			<?php endif; ?>
+		</div>
+
 		<table class="widefat striped aiadv-admin__table">
 			<thead>
 				<tr>
+					<td class="check-column">
+						<input type="checkbox" id="aiadv-select-all" aria-label="<?php esc_attr_e( 'Select all shown', 'wp-ai-advisor' ); ?>" />
+					</td>
 					<th><?php esc_html_e( 'Title', 'wp-ai-advisor' ); ?></th>
 					<th><?php esc_html_e( 'Type', 'wp-ai-advisor' ); ?></th>
 					<th><?php esc_html_e( 'Language', 'wp-ai-advisor' ); ?></th>
@@ -359,7 +404,7 @@ class WP_AI_Advisor_Admin {
 			<tbody>
 				<?php if ( empty( $sources ) ) : ?>
 					<tr>
-						<td colspan="6">
+						<td colspan="7">
 							<?php
 							echo $filter
 								? esc_html__( 'No sources with this status.', 'wp-ai-advisor' )
@@ -370,6 +415,14 @@ class WP_AI_Advisor_Admin {
 				<?php else : ?>
 					<?php foreach ( $sources as $source ) : ?>
 						<tr>
+							<th scope="row" class="check-column">
+								<input
+									type="checkbox"
+									class="aiadv-admin__select"
+									value="<?php echo (int) $source['id']; ?>"
+									aria-label="<?php echo esc_attr( $source['title'] ? $source['title'] : $source['url'] ); ?>"
+								/>
+							</th>
 							<td>
 								<?php if ( WP_AI_Advisor_Store::TYPE_DOCUMENT !== $source['type'] && $source['url'] ) : ?>
 									<a href="<?php echo esc_url( $source['url'] ); ?>" target="_blank" rel="noopener">
@@ -685,6 +738,38 @@ class WP_AI_Advisor_Admin {
 		);
 
 		$this->description( __( 'One fragment per line. Any URL containing one is skipped.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Duplicate-avoidance checkbox.
+	 *
+	 * @return void
+	 */
+	public function render_skip_crawled() {
+		printf(
+			'<label><input type="checkbox" id="wp_ai_advisor_skip_crawled" name="%1$s" value="1"%2$s /> %3$s</label>',
+			esc_attr( $this->name( 'skip_crawled' ) ),
+			checked( (bool) WP_AI_Advisor_Settings::get( 'skip_crawled' ), true, false ),
+			esc_html__( 'Skip local posts whose URL the crawl already covered.', 'wp-ai-advisor' )
+		);
+
+		$this->description( __( 'Only affects both-modes. Without it the same page is indexed twice, which costs tokens and returns near-duplicate passages.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Theme-filter rendering checkbox.
+	 *
+	 * @return void
+	 */
+	public function render_render_filters() {
+		printf(
+			'<label><input type="checkbox" id="wp_ai_advisor_render_filters" name="%1$s" value="1"%2$s /> %3$s</label>',
+			esc_attr( $this->name( 'render_filters' ) ),
+			checked( (bool) WP_AI_Advisor_Settings::get( 'render_filters' ), true, false ),
+			esc_html__( 'Run local content through the_content when importing.', 'wp-ai-advisor' )
+		);
+
+		$this->description( __( 'Resolves shortcodes and page-builder markup the way the theme renders it. Turn it off if importing fails on a plugin or theme: blocks are still rendered, but shortcode output is dropped.', 'wp-ai-advisor' ) );
 	}
 
 	/**

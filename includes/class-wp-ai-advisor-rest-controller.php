@@ -62,6 +62,7 @@ class WP_AI_Advisor_REST_Controller {
 			'/documents'    => 'upload_document',
 			'/sources/delete' => 'delete_source',
 			'/sources/retry'  => 'retry_failed',
+			'/sources/bulk'   => 'bulk_sources',
 			'/clear'        => 'clear',
 			'/test'         => 'test_connection',
 		);
@@ -73,7 +74,7 @@ class WP_AI_Advisor_REST_Controller {
 				array(
 					array(
 						'methods'             => WP_REST_Server::CREATABLE,
-						'callback'            => array( $this, $callback ),
+						'callback'            => $this->guarded( $callback ),
 						'permission_callback' => array( $this, 'can_manage' ),
 					),
 				)
@@ -91,6 +92,51 @@ class WP_AI_Advisor_REST_Controller {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Wraps an admin callback so it always answers with JSON.
+	 *
+	 * Third-party code on `the_content` and friends can echo markup or fatal
+	 * outright; unwrapped, that reaches the browser as an HTML 500 and the
+	 * progress loop dies on "Unexpected token '<'". Buffering and catching turns
+	 * both into an ordinary REST error the loop can report and retry.
+	 *
+	 * @param string $method Method name on this class.
+	 * @return callable
+	 */
+	private function guarded( $method ) {
+		return function ( $request ) use ( $method ) {
+			$depth = ob_get_level();
+
+			ob_start();
+
+			try {
+				$result = $this->$method( $request );
+			} catch ( Throwable $e ) {
+				$result = new WP_Error(
+					'wp_ai_advisor_step_failed',
+					sprintf(
+						/* translators: %s: error message from the failing code. */
+						__( 'A plugin or theme failed while the advisor was reading this source: %s', 'wp-ai-advisor' ),
+						$e->getMessage()
+					),
+					array( 'status' => 500 )
+				);
+			}
+
+			$stray = '';
+
+			while ( ob_get_level() > $depth ) {
+				$stray = ob_get_clean() . $stray;
+			}
+
+			if ( '' !== trim( (string) $stray ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[wp-ai-advisor] discarded stray output: ' . mb_substr( trim( $stray ), 0, 500 ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			}
+
+			return $result;
+		};
 	}
 
 	/* ---------------------------------------------------------------------
@@ -492,6 +538,57 @@ class WP_AI_Advisor_REST_Controller {
 		return rest_ensure_response(
 			array(
 				'requeued' => $requeued,
+				'stats'    => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Applies a bulk action to selected sources.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function bulk_sources( WP_REST_Request $request ) {
+		$action = sanitize_key( (string) $request->get_param( 'action' ) );
+		$ids    = (array) $request->get_param( 'ids' );
+
+		if ( 'duplicates' === $action ) {
+			$ids    = WP_AI_Advisor_Store::duplicate_ids();
+			$action = 'delete';
+		}
+
+		$ids = array_values( array_filter( array_map( 'absint', $ids ) ) );
+
+		if ( empty( $ids ) ) {
+			return rest_ensure_response(
+				array(
+					'affected' => 0,
+					'stats'    => WP_AI_Advisor_Store::stats(),
+				)
+			);
+		}
+
+		switch ( $action ) {
+			case 'delete':
+				$affected = WP_AI_Advisor_Store::delete_sources( $ids );
+				break;
+
+			case 'requeue':
+				$affected = WP_AI_Advisor_Store::requeue_sources( $ids );
+				break;
+
+			default:
+				return new WP_Error(
+					'wp_ai_advisor_bad_action',
+					__( 'Unknown bulk action.', 'wp-ai-advisor' ),
+					array( 'status' => 400 )
+				);
+		}
+
+		return rest_ensure_response(
+			array(
+				'affected' => $affected,
 				'stats'    => WP_AI_Advisor_Store::stats(),
 			)
 		);

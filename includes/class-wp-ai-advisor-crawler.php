@@ -16,6 +16,11 @@ class WP_AI_Advisor_Crawler {
 	const MAX_DEPTH = 4;
 
 	/**
+	 * How many times one URL may be attempted before it is set aside.
+	 */
+	const MAX_ATTEMPTS = 3;
+
+	/**
 	 * Seeds the frontier with the site root and any sitemap entries.
 	 *
 	 * @return int Number of URLs queued.
@@ -49,6 +54,15 @@ class WP_AI_Advisor_Crawler {
 
 		$source = $rows[0];
 		$url    = $source['url'];
+
+		if ( WP_AI_Advisor_Store::record_attempt( $source['id'] ) > self::MAX_ATTEMPTS ) {
+			WP_AI_Advisor_Store::mark_error( $source['id'], __( 'Gave up after repeated failures fetching this URL.', 'wp-ai-advisor' ) );
+
+			return array(
+				'url'    => $url,
+				'status' => 'skipped',
+			);
+		}
 
 		$response = wp_remote_get(
 			$url,

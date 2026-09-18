@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WP_AI_Advisor_Store {
 
-	const DB_VERSION       = '3';
+	const DB_VERSION       = '4';
 	const DB_VERSION_KEY   = 'wp_ai_advisor_db_version';
 	const STATUS_PENDING   = 'pending';
 	const STATUS_FETCHED   = 'fetched';
@@ -74,6 +74,7 @@ class WP_AI_Advisor_Store {
 			depth tinyint(3) unsigned NOT NULL DEFAULT 0,
 			ref bigint(20) unsigned NOT NULL DEFAULT 0,
 			language varchar(10) NOT NULL DEFAULT '',
+			attempts tinyint(3) unsigned NOT NULL DEFAULT 0,
 			updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 			PRIMARY KEY  (id),
 			UNIQUE KEY url_hash (url_hash),
@@ -450,6 +451,151 @@ class WP_AI_Advisor_Store {
 	}
 
 	/**
+	 * Records an attempt at processing a source and returns the new count.
+	 *
+	 * Written before the work starts, so a row that crashes the request - a
+	 * fatal, a timeout, an exhausted memory limit - still carries evidence of
+	 * the attempt and cannot trap the queue in a loop.
+	 *
+	 * @param int $source_id Source ID.
+	 * @return int Attempts so far, including this one.
+	 */
+	public static function record_attempt( $source_id ) {
+		global $wpdb;
+
+		$table = self::sources_table();
+
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare( "UPDATE {$table} SET attempts = attempts + 1 WHERE id = %d", (int) $source_id ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+
+		return (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT attempts FROM {$table} WHERE id = %d", (int) $source_id ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+	}
+
+	/**
+	 * URLs already held by sources of a given type.
+	 *
+	 * @param string $type Source type.
+	 * @return array Map of normalised URL => true.
+	 */
+	public static function urls_of_type( $type ) {
+		global $wpdb;
+
+		$table = self::sources_table();
+
+		$urls = (array) $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare( "SELECT url FROM {$table} WHERE type = %s AND url <> ''", $type ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+
+		$map = array();
+
+		foreach ( $urls as $url ) {
+			$map[ self::normalize_url( $url ) ] = true;
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Sources that cover a URL another source already covers.
+	 *
+	 * Only the later row of each pair is reported, so deleting everything
+	 * returned always leaves one copy of each URL behind.
+	 *
+	 * @return int[]
+	 */
+	public static function duplicate_ids() {
+		global $wpdb;
+
+		$table = self::sources_table();
+
+		$rows = (array) $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			"SELECT id, url FROM {$table} WHERE url <> '' ORDER BY id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			ARRAY_A
+		);
+
+		$seen = array();
+		$dupes = array();
+
+		foreach ( $rows as $row ) {
+			$url = self::normalize_url( $row['url'] );
+
+			if ( isset( $seen[ $url ] ) ) {
+				$dupes[] = (int) $row['id'];
+				continue;
+			}
+
+			$seen[ $url ] = true;
+		}
+
+		return $dupes;
+	}
+
+	/**
+	 * Deletes several sources and their chunks.
+	 *
+	 * @param int[] $ids Source IDs.
+	 * @return int Number deleted.
+	 */
+	public static function delete_sources( array $ids ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+
+		foreach ( $ids as $id ) {
+			self::delete_source( $id );
+		}
+
+		return count( $ids );
+	}
+
+	/**
+	 * Sends several sources back to the start of the queue.
+	 *
+	 * @param int[] $ids Source IDs.
+	 * @return int Number requeued.
+	 */
+	public static function requeue_sources( array $ids ) {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+
+		if ( empty( $ids ) ) {
+			return 0;
+		}
+
+		$table        = self::sources_table();
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+
+		// Documents cannot be re-fetched, only re-embedded.
+		$params = array_merge( array( self::STATUS_PENDING, current_time( 'mysql' ), self::TYPE_DOCUMENT ), $ids );
+
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s
+				 WHERE type <> %s AND id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$params
+			)
+		);
+
+		$params = array_merge( array( self::STATUS_FETCHED, current_time( 'mysql' ), self::TYPE_DOCUMENT ), $ids );
+
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s
+				 WHERE type = %s AND id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$params
+			)
+		);
+
+		foreach ( $ids as $id ) {
+			self::delete_chunks( $id );
+		}
+
+		return count( $ids );
+	}
+
+	/**
 	 * Puts failed sources back in the queue.
 	 *
 	 * A source that already holds text only needs embedding again; one that
@@ -465,7 +611,7 @@ class WP_AI_Advisor_Store {
 
 		$with_content = (int) $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"UPDATE {$table} SET status = %s, message = '', updated_at = %s WHERE status = %s AND content <> ''", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s WHERE status = %s AND content <> ''", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				self::STATUS_FETCHED,
 				$now,
 				self::STATUS_ERROR
@@ -474,7 +620,7 @@ class WP_AI_Advisor_Store {
 
 		$without_content = (int) $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"UPDATE {$table} SET status = %s, message = '', updated_at = %s WHERE status = %s AND content = '' AND type <> %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s WHERE status = %s AND content = '' AND type <> %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				self::STATUS_PENDING,
 				$now,
 				self::STATUS_ERROR,

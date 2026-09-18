@@ -46,3 +46,22 @@
 .wp-ai-advisor-admin .aiadv-admin__error {
 	color: #b32d2e;
 }
+
+.wp-ai-advisor-admin .aiadv-admin__bulk {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
+	margin: 0.5rem 0;
+	padding: 0;
+	height: auto;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__selected {
+	color: #50575e;
+}
+
+.wp-ai-advisor-admin .check-column {
+	width: 2.5rem;
+	vertical-align: middle;
+}

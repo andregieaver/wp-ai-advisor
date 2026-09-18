@@ -22,6 +22,11 @@ class WP_AI_Advisor_Local_Content {
 	const MAX_POSTS = 5000;
 
 	/**
+	 * How many times one post may be attempted before it is set aside.
+	 */
+	const MAX_ATTEMPTS = 3;
+
+	/**
 	 * Clears previously imported local sources and queues the current ones.
 	 *
 	 * @return int Number of posts queued.
@@ -60,10 +65,22 @@ class WP_AI_Advisor_Local_Content {
 		 */
 		$post_ids = (array) apply_filters( 'wp_ai_advisor_local_post_ids', $query->posts, $post_types );
 
+		// In both-modes the crawl usually covers the same URLs; indexing them a
+		// second time costs tokens and returns near-duplicate passages.
+		$crawled = WP_AI_Advisor_Settings::get( 'skip_crawled' )
+			? WP_AI_Advisor_Store::urls_of_type( WP_AI_Advisor_Store::TYPE_PAGE )
+			: array();
+
 		$queued = 0;
 
 		foreach ( $post_ids as $post_id ) {
-			if ( WP_AI_Advisor_Store::queue_post( (int) $post_id, get_permalink( $post_id ), get_the_title( $post_id ) ) ) {
+			$permalink = get_permalink( $post_id );
+
+			if ( isset( $crawled[ WP_AI_Advisor_Store::normalize_url( $permalink ) ] ) ) {
+				continue;
+			}
+
+			if ( WP_AI_Advisor_Store::queue_post( (int) $post_id, $permalink, get_the_title( $post_id ) ) ) {
 				$queued++;
 			}
 		}
@@ -88,7 +105,20 @@ class WP_AI_Advisor_Local_Content {
 		}
 
 		$source = $rows[0];
-		$post   = get_post( (int) $source['ref'] );
+
+		if ( WP_AI_Advisor_Store::record_attempt( $source['id'] ) > self::MAX_ATTEMPTS ) {
+			WP_AI_Advisor_Store::mark_error(
+				$source['id'],
+				__( 'Gave up after repeated failures while rendering this post. Turn off "Render with theme filters" and try again.', 'wp-ai-advisor' )
+			);
+
+			return array(
+				'title'  => $source['title'],
+				'status' => 'skipped',
+			);
+		}
+
+		$post = get_post( (int) $source['ref'] );
 
 		if ( ! $post || 'publish' !== $post->post_status ) {
 			WP_AI_Advisor_Store::mark_error( $source['id'], __( 'The post is no longer published.', 'wp-ai-advisor' ) );
@@ -159,21 +189,42 @@ class WP_AI_Advisor_Local_Content {
 	}
 
 	/**
-	 * Runs post content through `the_content` with the loop globals in place.
+	 * Renders post content, through `the_content` when that is safe to do.
 	 *
-	 * Themes and page builders hook that filter expecting `$post` to be set up;
-	 * without it some of them warn, or render nothing at all.
+	 * That filter is a hostile place to stand outside a real front-end request.
+	 * Themes, page builders and commerce plugins hook it and may echo markup
+	 * directly - which corrupts the JSON response - or call template functions
+	 * that do not exist in a REST context, which is a fatal. So the filter runs
+	 * inside an output buffer, any stray output is discarded, and a crash falls
+	 * back to rendering the stored blocks instead of taking the request with it.
 	 *
 	 * @param WP_Post $post Post object.
 	 * @return string Rendered HTML.
 	 */
 	private function render_content( $post ) {
+		if ( ! WP_AI_Advisor_Settings::get( 'render_filters' ) ) {
+			return $this->render_raw( $post );
+		}
+
 		$previous = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
+		$depth    = ob_get_level();
 
 		$GLOBALS['post'] = $post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		setup_postdata( $post );
 
-		$html = apply_filters( 'the_content', $post->post_content );
+		ob_start();
+
+		try {
+			$html = (string) apply_filters( 'the_content', $post->post_content );
+		} catch ( Throwable $e ) {
+			$html = $this->render_raw( $post );
+		}
+
+		// Discard anything a filter echoed rather than returned, and unwind any
+		// buffer a crashing filter left open.
+		while ( ob_get_level() > $depth ) {
+			ob_end_clean();
+		}
 
 		wp_reset_postdata();
 
@@ -183,7 +234,23 @@ class WP_AI_Advisor_Local_Content {
 			$GLOBALS['post'] = $previous; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 		}
 
-		return (string) $html;
+		return '' !== trim( $html ) ? $html : $this->render_raw( $post );
+	}
+
+	/**
+	 * Renders stored content without letting other plugins near it.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string
+	 */
+	private function render_raw( $post ) {
+		$html = $post->post_content;
+
+		if ( function_exists( 'do_blocks' ) ) {
+			$html = do_blocks( $html );
+		}
+
+		return strip_shortcodes( (string) $html );
 	}
 
 	/**

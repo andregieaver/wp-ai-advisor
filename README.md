@@ -103,7 +103,10 @@ Neither mode updates itself. Re-run a build after the site changes.
 
 **OpenAI connection** — API key, chat model (default `gpt-4o-mini`), embedding model (default `text-embedding-3-small`), temperature, max answer tokens.
 
-**Knowledge source** — mode, local post types, crawl base URL, page limit, and URL fragments to skip.
+**Knowledge source** — mode, local post types, crawl base URL, page limit, URL fragments to skip, plus:
+
+- *Avoid duplicates* (on by default) — in both-modes, skips local posts whose URL the crawl already covered. Without it the same page is indexed twice, costing tokens and returning near-duplicate passages.
+- *Render with theme filters* (on by default) — runs local content through `the_content` so shortcodes and page-builder markup resolve as the theme renders them. Turn it off if importing fails on a hostile plugin: blocks are still rendered, but shortcode output is dropped.
 
 **Answering**
 - *Restrict to site content* — on by default. Answers come only from indexed material; anything else gets your off-topic reply. Turn it off to let the model fall back on general knowledge.
@@ -125,9 +128,13 @@ Neither mode updates itself. Re-run a build after the site changes.
 - **Retry failed** — appears only when something failed. Puts failed sources back in the queue and resumes: sources that already hold text go straight back to embedding, ones that never got text go back to the crawl queue.
 - **Crawl only** / **Import local content only** — run a single phase, shown when the mode includes it. Each clears and rebuilds just its own sources; uploaded documents are never touched.
 
+Under the table, **Duplicates** lists sources whose URL another source already covers — the later row of each pair, so deleting everything listed always leaves one copy. Tick rows for bulk **Delete** or **Queue for crawling again**, or use **Delete all N duplicates** in one go.
+
 The counters distinguish **To fetch** (queued, not yet retrieved) from **To index** (retrieved, not yet embedded), so a stalled run tells you which half stopped. Under the sources table, the filter links narrow it by status — **Failed** shows exactly what went wrong, with the reason on each row.
 
 A run survives transient failures: each step is retried up to three times with a backoff, and a phase that still gives up no longer cancels the phases after it. Nothing is lost when a run stops — Resume continues from the queue.
+
+Importing local content means standing inside `the_content`, which is a hostile place outside a real front-end request: other plugins hook it and may echo markup — corrupting the JSON response — or call template functions that do not exist in REST, which is a fatal. So the filter runs inside an output buffer with stray output discarded, crashes fall back to rendering the stored blocks, every admin endpoint returns JSON even when something under it explodes, and each source records an attempt *before* the risky work. That last one matters: a source that crashes the request uncatchably (a timeout, an exhausted memory limit) is set aside after three tries instead of trapping the queue on one row forever.
 - **Additional documents** — upload `.txt`, `.md`, `.csv`, `.json`, `.html`, `.docx`, `.pdf`. Useful for price lists or policies the website does not spell out.
 - **Sources table** — every page, imported post and document with its status, plus per-row delete.
 

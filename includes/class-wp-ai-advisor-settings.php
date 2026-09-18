@@ -33,6 +33,8 @@ class WP_AI_Advisor_Settings {
 			'local_post_types' => array( 'post', 'page' ),
 			'site_url'         => '',
 			'crawl_max_pages'  => 100,
+			'render_filters'   => true,
+			'skip_crawled'     => true,
 			'crawl_exclude'    => "/wp-admin/\n/cart/\n/checkout/\n/my-account/",
 			'top_k'            => 6,
 			'min_score'        => 0.20,
@@ -322,8 +324,10 @@ class WP_AI_Advisor_Settings {
 		// Checkboxes post nothing when unchecked, so they are only read when the
 		// form that owns them was actually submitted.
 		if ( isset( $input['_form'] ) ) {
-			$output['strict_mode'] = ! empty( $input['strict_mode'] );
-			$output['admin_only']  = ! empty( $input['admin_only'] );
+			$output['strict_mode']    = ! empty( $input['strict_mode'] );
+			$output['admin_only']     = ! empty( $input['admin_only'] );
+			$output['render_filters'] = ! empty( $input['render_filters'] );
+			$output['skip_crawled']   = ! empty( $input['skip_crawled'] );
 		}
 
 		if ( isset( $input['reply_language'] ) ) {

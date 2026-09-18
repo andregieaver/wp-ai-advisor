@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,11 +78,26 @@ indexed separately.
 No. Press Resume on the Knowledge base tab and it carries on from the queue. Use Build
 knowledge base only when you want to clear everything and rebuild from scratch.
 
+= Importing local content fails with a server error. What now? =
+
+A plugin or theme is misbehaving when the advisor renders post content. Turn off "Render
+with theme filters" under Knowledge source and import again; blocks are still read, but
+output produced by shortcodes is dropped.
+
 = Can it read scanned PDFs? =
 
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.4.2 =
+* Fixed local import failing with a 500 when a plugin or theme misbehaves on the_content.
+* Admin endpoints now always return JSON, never a half-rendered HTML error page.
+* A source that repeatedly crashes the request is set aside instead of blocking the queue.
+* Added duplicate detection, a Duplicates view and one-click removal.
+* Added bulk select with Delete and Queue-for-crawling-again.
+* Both-modes now skips local posts the crawl already covered, by default.
+* Added a setting to import local content without running the_content.
 
 = 0.4.1 =
 * Added Resume, which continues a build from wherever it stopped instead of starting over.
