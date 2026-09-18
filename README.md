@@ -54,6 +54,18 @@ The constant wins over the stored setting, and the admin field becomes read-only
 
 The container is fluid: it fills its parent up to `56rem`, drops from two columns to one below `48em`, and tightens its padding and controls below `30em`. Colours come from CSS custom properties on `.aiadv`, so a theme can override them without touching the stylesheet.
 
+## Estimates
+
+Asked "what would this cost for 50 employees?", the advisor works the figure out rather than refusing — under constraints that keep it honest:
+
+- **Prices come from your content only.** Every price, rate and fee must appear in a retrieved excerpt. The model may not invent one or adjust one. If a needed price is not indexed, the answer says which figure is missing and offers contact instead of guessing.
+- **Arithmetic is done by the plugin.** Language models predict plausible digits rather than computing, so the model writes the expression and PHP evaluates it exactly, through a hand-written parser — not `eval()`, since the expression originates from a model reading visitor input. Anything that is not arithmetic is refused.
+- **Assumptions are declared.** Figures your content cannot supply — cups per person per day, working days per month — come from an editable list under **Settings → AI Advisor → Estimates**, and the answer is required to say which numbers were assumptions.
+
+The result reads like: *"Regner vi 2,5 kopper per ansatt per dag og 21 arbeidsdager, blir det … rundt X kroner i måneden."* It is labelled an estimate and points at getting a real quote.
+
+Turn the whole thing off with **Work out estimates** if you would rather the advisor never produced a number.
+
 ## Languages
 
 The plugin is multilingual in three separate senses, and it is worth keeping them apart.
@@ -164,9 +176,12 @@ All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, hi
   "followups": ["…"],
   "cta": { "label": "Book a table", "url": "https://example.com/book" },
   "grounded": true,
-  "language": "nb"
+  "language": "nb",
+  "calculations": [{ "label": "Kaffe per måned", "expression": "50 * 2.5 * 21 * 1.9", "value": 4987.5 }]
 }
 ```
+
+`calculations` records every expression the model asked for and what it evaluated to, so an estimate can be checked rather than taken on trust.
 
 ## Hooks
 
@@ -178,6 +193,7 @@ All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, hi
 | `wp_ai_advisor_is_visible` | filter | Decide whether the widget renders. |
 | `wp_ai_advisor_allowed_extensions` | filter | Change which document types may be uploaded. |
 | `wp_ai_advisor_local_post_ids` | filter | Change which posts local mode indexes. |
+| `wp_ai_advisor_assumptions` | filter | Change the figures offered for estimates. |
 | `wp_ai_advisor_answered` | action | Fires after a successful answer, with question, result and context. |
 
 ## Data
@@ -188,16 +204,17 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 
 - Requests use the WordPress HTTP API, not the OpenAI PHP SDK, so the plugin ships no `vendor/` autoloader that could collide with another plugin.
 - Similarity search scans the chunk table in PHP. That is the right trade for a single site; it is not built for corpus-scale data.
-- Answers render as text, never HTML, so model output cannot inject markup.
+- Answers are Markdown, rendered into the page by building DOM nodes with `textContent` — never `innerHTML`. Model output therefore cannot inject markup, and only `http(s)` and relative links become anchors.
 - `max_tokens` is the parameter sent to the chat endpoint. Some newer OpenAI models require `max_completion_tokens` instead — use the `wp_ai_advisor_request_body` filter if you switch to one.
 
 ## Tests
 
 ```bash
-php tests/logic-test.php
+php tests/logic-test.php     # 94 checks
+node tests/markdown-test.js  # 19 checks
 ```
 
-Covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 

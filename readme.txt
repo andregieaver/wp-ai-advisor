@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.4.2
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,8 @@ Features:
 * Fully translatable, with a Norwegian Bokmål translation included
 * Answers in the visitor's language, and prefers passages in that language
 * Polylang and WPML aware: every translation is indexed and tagged
+* Works out cost estimates from your own prices, with the arithmetic done in PHP
+* Answers render Markdown: lists, bold and links instead of raw asterisks
 * Filters for the system prompt, retrieved context, and the outgoing request body
 
 == Installation ==
@@ -84,11 +86,24 @@ A plugin or theme is misbehaving when the advisor renders post content. Turn off
 with theme filters" under Knowledge source and import again; blocks are still read, but
 output produced by shortcodes is dropped.
 
+= Can it tell a visitor what something will cost? =
+
+Yes, if the prices are in your indexed content. It states the assumptions it used, works
+the arithmetic out in PHP rather than guessing, and calls the result an estimate. If a
+price it needs is missing it says so instead of inventing one. Turn it off under
+Settings, AI Advisor, Estimates.
+
 = Can it read scanned PDFs? =
 
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.5.0 =
+* The advisor can now work out estimates instead of refusing "what would this cost" questions.
+* Arithmetic runs through a restricted expression evaluator in PHP, never the model's guesswork.
+* Prices must still come from indexed content; assumptions are configurable and always stated.
+* Answers now render Markdown — lists, bold, headings and links — instead of showing raw syntax.
 
 = 0.4.2 =
 * Fixed local import failing with a 500 when a plugin or theme misbehaves on the_content.

@@ -158,6 +158,73 @@ check( 'checkbox read when form marker present', $clean['strict_mode'], true );
 check( 'admin_only defaults off when unchecked', $clean['admin_only'], false );
 check( 'blank api_key keeps stored key', $clean['api_key'], '' );
 
+// --- Calculator ------------------------------------------------------------
+/**
+ * Asserts an expression evaluates to a value.
+ *
+ * @param string $expression Expression.
+ * @param float  $want       Expected result.
+ * @return void
+ */
+function calc_is( $expression, $want ) {
+	$got = WP_AI_Advisor_Calculator::evaluate( $expression );
+
+	check(
+		'calculates ' . $expression,
+		is_wp_error( $got ) ? $got->get_error_code() : round( $got, 8 ),
+		round( $want, 8 )
+	);
+}
+
+/**
+ * Asserts an expression is rejected.
+ *
+ * @param string $expression Expression.
+ * @param string $label      What is being rejected.
+ * @return void
+ */
+function calc_rejects( $expression, $label ) {
+	check( 'rejects ' . $label, is_wp_error( WP_AI_Advisor_Calculator::evaluate( $expression ) ), true );
+}
+
+// 50 employees, 2.5 cups each per working day, 21 working days, 1.90 a cup,
+// plus 890 rental: the shape of estimate this exists to get right.
+calc_is( '50 * 2.5 * 21 * 1.90 + 890', 5877.5 );
+calc_is( '2 + 3 * 4', 14 );
+calc_is( '(2 + 3) * 4', 20 );
+calc_is( '10 / 4', 2.5 );
+calc_is( '-5 + 3', -2 );
+calc_is( '2 ^ 3 ^ 2', 512 );
+calc_is( 'round(6127.456, 2)', 6127.46 );
+calc_is( 'min(10, 4, 7)', 4 );
+calc_is( 'max(10, 4, 7)', 10 );
+calc_is( 'abs(0 - 12)', 12 );
+calc_is( 'ceil(2.1)', 3 );
+calc_is( 'floor(2.9)', 2 );
+calc_is( '.5 * 4', 2 );
+calc_is( '100 % 30', 10 );
+
+// The expression is written by a model reading visitor input, so everything
+// that is not arithmetic has to be refused rather than evaluated.
+calc_rejects( 'system("ls")', 'shell calls' );
+calc_rejects( 'phpinfo()', 'php functions' );
+calc_rejects( '1; DROP TABLE wp_posts', 'statement separators' );
+calc_rejects( '`ls`', 'backticks' );
+calc_rejects( '$x + 1', 'variables' );
+calc_rejects( '1 / 0', 'division by zero' );
+calc_rejects( '10 % 0', 'modulo by zero' );
+calc_rejects( '2 ^ 1000', 'huge exponents' );
+calc_rejects( '(1 + 2', 'unclosed brackets' );
+calc_rejects( '1 +', 'dangling operators' );
+calc_rejects( '', 'empty input' );
+calc_rejects( '1.2.3 + 1', 'malformed numbers' );
+calc_rejects( '1 234', 'space-separated numbers' );
+calc_rejects( 'foo(2)', 'unknown functions' );
+calc_rejects( 'round()', 'missing arguments' );
+calc_rejects( 'abs(1, 2)', 'too many arguments' );
+calc_rejects( str_repeat( '1+', 400 ) . '1', 'over-long expressions' );
+calc_rejects( str_repeat( '(', 40 ) . '1' . str_repeat( ')', 40 ), 'deep nesting' );
+
 // --- Language detection ----------------------------------------------------
 check( 'normalize drops region', WP_AI_Advisor_Language::normalize( 'nb_NO' ), 'nb' );
 check( 'normalize handles hyphenated tags', WP_AI_Advisor_Language::normalize( 'pt-BR' ), 'pt' );

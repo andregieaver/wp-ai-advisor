@@ -114,6 +114,7 @@ require_once $root . 'class-wp-ai-advisor-settings.php';
 require_once $root . 'class-wp-ai-advisor-store.php';
 require_once $root . 'class-wp-ai-advisor-text.php';
 require_once $root . 'class-wp-ai-advisor-language.php';
+require_once $root . 'class-wp-ai-advisor-calculator.php';
 require_once $root . 'class-wp-ai-advisor-crawler.php';
 require_once $root . 'class-wp-ai-advisor-indexer.php';
 require_once $root . 'class-wp-ai-advisor-documents.php';

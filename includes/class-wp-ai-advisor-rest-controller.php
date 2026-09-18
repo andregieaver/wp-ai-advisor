@@ -297,6 +297,7 @@ class WP_AI_Advisor_REST_Controller {
 				'cta'       => $this->cta(),
 				'grounded'  => (bool) $result['grounded'],
 				'language'  => $language,
+				'calculations' => isset( $result['calculations'] ) ? $result['calculations'] : array(),
 			)
 		);
 	}

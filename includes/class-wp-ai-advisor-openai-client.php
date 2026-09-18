@@ -15,6 +15,7 @@ class WP_AI_Advisor_OpenAI_Client {
 	const API_BASE        = 'https://api.openai.com/v1';
 	const REQUEST_TIMEOUT = 60;
 	const EMBED_BATCH     = 64;
+	const MAX_TOOL_ROUNDS = 4;
 
 	/**
 	 * API key used for requests.
@@ -65,6 +66,10 @@ class WP_AI_Advisor_OpenAI_Client {
 			. "\n\n" . WP_AI_Advisor_Language::reply_instruction( $language )
 			. "\n\n" . $this->grounding_rules( (bool) $settings['strict_mode'] );
 
+		if ( ! empty( $settings['enable_calculator'] ) ) {
+			$system .= "\n\n" . $this->estimate_rules();
+		}
+
 		$messages = array( array( 'role' => 'system', 'content' => $system ) );
 
 		foreach ( $history as $turn ) {
@@ -76,54 +81,209 @@ class WP_AI_Advisor_OpenAI_Client {
 			'content' => $this->render_user_turn( $question, $context ),
 		);
 
-		$body = array(
-			'model'           => $settings['model'],
-			'messages'        => $messages,
-			'temperature'     => (float) $settings['temperature'],
-			'max_tokens'      => (int) $settings['max_tokens'],
-			'response_format' => array(
-				'type'        => 'json_schema',
-				'json_schema' => array(
-					'name'   => 'advisor_answer',
-					'strict' => true,
-					'schema' => $this->answer_schema(),
+		$calculations = array();
+
+		// The model may ask for arithmetic before it can answer, so the request
+		// is a short loop rather than a single call.
+		for ( $round = 0; $round <= self::MAX_TOOL_ROUNDS; $round++ ) {
+			$body = array(
+				'model'           => $settings['model'],
+				'messages'        => $messages,
+				'temperature'     => (float) $settings['temperature'],
+				'max_tokens'      => (int) $settings['max_tokens'],
+				'response_format' => array(
+					'type'        => 'json_schema',
+					'json_schema' => array(
+						'name'   => 'advisor_answer',
+						'strict' => true,
+						'schema' => $this->answer_schema(),
+					),
 				),
-			),
-		);
+			);
 
-		/**
-		 * Filters the chat completion request body.
-		 *
-		 * @param array  $body     Request body.
-		 * @param string $question Visitor question.
-		 * @param array  $context  Retrieved context chunks.
-		 */
-		$body = apply_filters( 'wp_ai_advisor_request_body', $body, $question, $context );
+			// On the last round the tools are withheld, so the model has no
+			// choice but to produce the answer instead of asking for more sums.
+			if ( ! empty( $settings['enable_calculator'] ) && $round < self::MAX_TOOL_ROUNDS ) {
+				$body['tools'] = array( $this->calculator_tool() );
+			}
 
-		$parsed = $this->request( '/chat/completions', $body );
+			/**
+			 * Filters the chat completion request body.
+			 *
+			 * @param array  $body     Request body.
+			 * @param string $question Visitor question.
+			 * @param array  $context  Retrieved context chunks.
+			 */
+			$body = apply_filters( 'wp_ai_advisor_request_body', $body, $question, $context );
 
-		if ( is_wp_error( $parsed ) ) {
-			return $parsed;
+			$parsed = $this->request( '/chat/completions', $body );
+
+			if ( is_wp_error( $parsed ) ) {
+				return $parsed;
+			}
+
+			$message = isset( $parsed['choices'][0]['message'] ) ? $parsed['choices'][0]['message'] : array();
+
+			if ( ! empty( $message['tool_calls'] ) && is_array( $message['tool_calls'] ) ) {
+				$messages[] = $message;
+
+				foreach ( $message['tool_calls'] as $call ) {
+					$outcome = $this->run_calculator( $call );
+
+					$calculations[] = $outcome['record'];
+
+					$messages[] = array(
+						'role'         => 'tool',
+						'tool_call_id' => isset( $call['id'] ) ? $call['id'] : '',
+						'content'      => wp_json_encode( $outcome['result'] ),
+					);
+				}
+
+				continue;
+			}
+
+			return $this->finish( $message, $context, $calculations, $parsed );
 		}
 
-		$content = isset( $parsed['choices'][0]['message']['content'] ) ? $parsed['choices'][0]['message']['content'] : '';
+		return new WP_Error(
+			'wp_ai_advisor_tool_loop',
+			__( 'The assistant kept asking for calculations without answering. Please try again.', 'wp-ai-advisor' ),
+			array( 'status' => 502 )
+		);
+	}
+
+	/**
+	 * Turns the model's final message into the answer payload.
+	 *
+	 * @param array $message      Assistant message.
+	 * @param array $context      Retrieved context chunks.
+	 * @param array $calculations Calculations performed this turn.
+	 * @param array $parsed       Full decoded response.
+	 * @return array|WP_Error
+	 */
+	private function finish( array $message, array $context, array $calculations, array $parsed ) {
+		$content = isset( $message['content'] ) ? (string) $message['content'] : '';
 		$decoded = json_decode( $content, true );
 
-		if ( ! is_array( $decoded ) || empty( $decoded['answer'] ) ) {
-			return new WP_Error(
-				'wp_ai_advisor_bad_answer',
-				__( 'The assistant returned an unreadable answer. Please try again.', 'wp-ai-advisor' ),
-				array( 'status' => 502 )
+		// Structured output should always parse, but a plain-text reply is worth
+		// showing rather than throwing away.
+		if ( ! is_array( $decoded ) || ! isset( $decoded['answer'] ) ) {
+			if ( '' === trim( $content ) ) {
+				return new WP_Error(
+					'wp_ai_advisor_bad_answer',
+					__( 'The assistant returned an unreadable answer. Please try again.', 'wp-ai-advisor' ),
+					array( 'status' => 502 )
+				);
+			}
+
+			$decoded = array(
+				'answer'   => $content,
+				'grounded' => ! empty( $context ),
 			);
 		}
 
 		return array(
-			'answer'    => (string) $decoded['answer'],
-			'grounded'  => ! empty( $decoded['grounded'] ),
-			'followups' => $this->clean_list( isset( $decoded['followups'] ) ? $decoded['followups'] : array() ),
-			'links'     => $this->clean_links( isset( $decoded['links'] ) ? $decoded['links'] : array(), $context ),
-			'usage'     => isset( $parsed['usage'] ) ? $parsed['usage'] : array(),
+			'answer'       => (string) $decoded['answer'],
+			'grounded'     => ! empty( $decoded['grounded'] ),
+			'followups'    => $this->clean_list( isset( $decoded['followups'] ) ? $decoded['followups'] : array() ),
+			'links'        => $this->clean_links( isset( $decoded['links'] ) ? $decoded['links'] : array(), $context ),
+			'calculations' => $calculations,
+			'usage'        => isset( $parsed['usage'] ) ? $parsed['usage'] : array(),
 		);
+	}
+
+	/**
+	 * The calculator tool definition.
+	 *
+	 * @return array
+	 */
+	private function calculator_tool() {
+		return array(
+			'type'     => 'function',
+			'function' => array(
+				'name'        => 'calculate',
+				'description' => 'Evaluate an arithmetic expression exactly. Use this for every sum, product or total in an answer — never work the arithmetic out yourself.',
+				'strict'      => true,
+				'parameters'  => array(
+					'type'                 => 'object',
+					'additionalProperties' => false,
+					'required'             => array( 'expression', 'label' ),
+					'properties'           => array(
+						'expression' => array(
+							'type'        => 'string',
+							'description' => 'Arithmetic only: digits, + - * / % ^ ( ) and round, min, max, abs, ceil, floor. Use a dot for decimals and no thousand separators. Example: 50 * 2.5 * 21 * 1.90 + 890',
+						),
+						'label'      => array(
+							'type'        => 'string',
+							'description' => 'What this step works out, in the language of the answer.',
+						),
+					),
+				),
+			),
+		);
+	}
+
+	/**
+	 * Runs one calculator tool call.
+	 *
+	 * @param array $call Tool call from the model.
+	 * @return array {result, record}
+	 */
+	private function run_calculator( array $call ) {
+		$arguments  = isset( $call['function']['arguments'] ) ? json_decode( $call['function']['arguments'], true ) : array();
+		$expression = is_array( $arguments ) && isset( $arguments['expression'] ) ? (string) $arguments['expression'] : '';
+		$label      = is_array( $arguments ) && isset( $arguments['label'] ) ? (string) $arguments['label'] : '';
+
+		$value = WP_AI_Advisor_Calculator::evaluate( $expression );
+
+		if ( is_wp_error( $value ) ) {
+			return array(
+				'result' => array(
+					'ok'    => false,
+					'error' => $value->get_error_message(),
+				),
+				'record' => array(
+					'label'      => $label,
+					'expression' => $expression,
+					'error'      => $value->get_error_message(),
+				),
+			);
+		}
+
+		return array(
+			'result' => array(
+				'ok'    => true,
+				'value' => $value,
+			),
+			'record' => array(
+				'label'      => $label,
+				'expression' => $expression,
+				'value'      => $value,
+			),
+		);
+	}
+
+	/**
+	 * Rules that let the advisor produce an estimate without inventing figures.
+	 *
+	 * @return string
+	 */
+	private function estimate_rules() {
+		$rules = array(
+			__( 'When the visitor asks what something would cost, or how much of something they would need, work out an estimate instead of refusing.', 'wp-ai-advisor' ),
+			__( 'Every price, rate and fee must come from the excerpts. Never invent one, and never adjust one.', 'wp-ai-advisor' ),
+			__( 'For anything the excerpts cannot tell you — how much people consume, how many working days a month has — use the ASSUMPTIONS below.', 'wp-ai-advisor' ),
+			__( 'Do every calculation with the calculate tool. Never work arithmetic out yourself, even when it looks easy.', 'wp-ai-advisor' ),
+			__( 'Write the estimate in this order: the assumptions you used, then what the numbers work out to, then the rounded total. Say which figures came from the site and which are assumptions.', 'wp-ai-advisor' ),
+			__( 'Call it an estimate, and invite the visitor to ask for an exact quote.', 'wp-ai-advisor' ),
+			__( 'If a price you need is not in the excerpts, say exactly which figure is missing and offer to put them in touch, rather than guessing at it.', 'wp-ai-advisor' ),
+			__( 'An estimate built from excerpt prices plus the assumptions below is grounded: set "grounded" to true.', 'wp-ai-advisor' ),
+		);
+
+		$assumptions = trim( (string) WP_AI_Advisor_Settings::assumptions() );
+
+		return "ESTIMATE RULES:\n- " . implode( "\n- ", $rules )
+			. "\n\nASSUMPTIONS:\n" . $assumptions;
 	}
 
 	/**

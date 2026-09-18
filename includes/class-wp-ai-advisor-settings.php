@@ -42,6 +42,10 @@ class WP_AI_Advisor_Settings {
 			// Language.
 			'reply_language'   => 'auto',
 
+			// Estimates.
+			'enable_calculator' => true,
+			'assumptions'       => '',
+
 			// Grounding.
 			'strict_mode'      => true,
 			'refusal_message'  => '',
@@ -189,6 +193,37 @@ class WP_AI_Advisor_Settings {
 	}
 
 	/**
+	 * The assumptions the advisor may lean on when the excerpts cannot supply a
+	 * figure, such as how much coffee a person drinks in a working day.
+	 *
+	 * These are the site owner's stated defaults, not the model's invention, and
+	 * the answer is required to name them.
+	 *
+	 * @return string
+	 */
+	public static function assumptions() {
+		$assumptions = trim( (string) self::get( 'assumptions', '' ) );
+
+		if ( '' === $assumptions ) {
+			$assumptions = implode(
+				"\n",
+				array(
+					__( 'One person drinks about 2.5 cups of coffee per working day.', 'wp-ai-advisor' ),
+					__( 'A month has about 21 working days.', 'wp-ai-advisor' ),
+					__( 'Prices are used exactly as the site states them, including whether VAT is mentioned.', 'wp-ai-advisor' ),
+				)
+			);
+		}
+
+		/**
+		 * Filters the assumptions offered to the model for estimates.
+		 *
+		 * @param string $assumptions One per line.
+		 */
+		return (string) apply_filters( 'wp_ai_advisor_assumptions', $assumptions );
+	}
+
+	/**
 	 * Message returned when a question falls outside the knowledge base.
 	 *
 	 * @return string
@@ -326,7 +361,8 @@ class WP_AI_Advisor_Settings {
 		if ( isset( $input['_form'] ) ) {
 			$output['strict_mode']    = ! empty( $input['strict_mode'] );
 			$output['admin_only']     = ! empty( $input['admin_only'] );
-			$output['render_filters'] = ! empty( $input['render_filters'] );
+			$output['render_filters']    = ! empty( $input['render_filters'] );
+			$output['enable_calculator'] = ! empty( $input['enable_calculator'] );
 			$output['skip_crawled']   = ! empty( $input['skip_crawled'] );
 		}
 
@@ -343,6 +379,10 @@ class WP_AI_Advisor_Settings {
 
 		if ( isset( $input['refusal_message'] ) ) {
 			$output['refusal_message'] = sanitize_textarea_field( $input['refusal_message'] );
+		}
+
+		if ( isset( $input['assumptions'] ) ) {
+			$output['assumptions'] = sanitize_textarea_field( $input['assumptions'] );
 		}
 
 		if ( isset( $input['system_prompt'] ) ) {

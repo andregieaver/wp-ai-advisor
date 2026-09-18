@@ -135,6 +135,7 @@ class WP_AI_Advisor_Admin {
 			'api'        => __( 'OpenAI connection', 'wp-ai-advisor' ),
 			'sources'    => __( 'Knowledge source', 'wp-ai-advisor' ),
 			'grounding'  => __( 'Answering', 'wp-ai-advisor' ),
+			'estimates'  => __( 'Estimates', 'wp-ai-advisor' ),
 			'language'   => __( 'Language', 'wp-ai-advisor' ),
 			'access'     => __( 'Access', 'wp-ai-advisor' ),
 			'appearance' => __( 'Appearance', 'wp-ai-advisor' ),
@@ -169,6 +170,9 @@ class WP_AI_Advisor_Admin {
 			array( 'system_prompt', __( 'System prompt', 'wp-ai-advisor' ), 'render_system_prompt', 'grounding' ),
 			array( 'top_k', __( 'Context passages', 'wp-ai-advisor' ), 'render_top_k', 'grounding' ),
 			array( 'min_score', __( 'Relevance threshold', 'wp-ai-advisor' ), 'render_min_score', 'grounding' ),
+
+			array( 'enable_calculator', __( 'Work out estimates', 'wp-ai-advisor' ), 'render_enable_calculator', 'estimates' ),
+			array( 'assumptions', __( 'Assumptions', 'wp-ai-advisor' ), 'render_assumptions', 'estimates' ),
 
 			array( 'reply_language', __( 'Reply language', 'wp-ai-advisor' ), 'render_reply_language', 'language' ),
 
@@ -836,6 +840,37 @@ class WP_AI_Advisor_Admin {
 	public function render_min_score() {
 		$this->text_field( 'min_score', 'number', 'small-text', array( 'min' => '0', 'max' => '1', 'step' => '0.05' ) );
 		$this->description( __( 'Passages scoring below this are ignored. Raise it if answers drift, lower it if the advisor refuses too often.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Calculator toggle.
+	 *
+	 * @return void
+	 */
+	public function render_enable_calculator() {
+		printf(
+			'<label><input type="checkbox" id="wp_ai_advisor_enable_calculator" name="%1$s" value="1"%2$s /> %3$s</label>',
+			esc_attr( $this->name( 'enable_calculator' ) ),
+			checked( (bool) WP_AI_Advisor_Settings::get( 'enable_calculator' ), true, false ),
+			esc_html__( 'Let the advisor answer "what would this cost" questions with a worked estimate.', 'wp-ai-advisor' )
+		);
+
+		$this->description( __( 'Prices still have to come from your indexed content — the advisor may not invent one. Arithmetic is done by the plugin, not guessed by the model.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Estimate assumptions.
+	 *
+	 * @return void
+	 */
+	public function render_assumptions() {
+		printf(
+			'<textarea id="wp_ai_advisor_assumptions" name="%1$s" rows="5" class="large-text">%2$s</textarea>',
+			esc_attr( $this->name( 'assumptions' ) ),
+			esc_textarea( WP_AI_Advisor_Settings::get( 'assumptions' ) )
+		);
+
+		$this->description( __( 'One per line. Figures the advisor may use when your content cannot supply them, such as cups per person per day. Every answer must say which numbers were assumptions. Leave blank for the defaults.', 'wp-ai-advisor' ) );
 	}
 
 	/**

@@ -25,6 +25,163 @@
 		return node;
 	}
 
+	/**
+	 * Renders a small, fixed subset of Markdown into a container.
+	 *
+	 * Answers arrive as Markdown, so raw ** and - have to stop showing up on the
+	 * page. Every node is built with createElement and textContent rather than
+	 * innerHTML: the text comes from a model reading site content and visitor
+	 * input, so it is never treated as markup.
+	 *
+	 * Supported: paragraphs, bullet and numbered lists, headings, bold, italic,
+	 * inline code and links. Anything else stays as literal text.
+	 */
+	var INLINE = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/;
+
+	function safeHref( url ) {
+		var trimmed = String( url ).trim();
+
+		// Relative paths and http(s) only: no javascript:, no data:.
+		if ( /^\//.test( trimmed ) || /^https?:\/\//i.test( trimmed ) ) {
+			return trimmed;
+		}
+
+		return null;
+	}
+
+	function renderInline( text, parent ) {
+		var parts = String( text ).split( INLINE );
+
+		parts.forEach( function ( part ) {
+			if ( ! part ) {
+				return;
+			}
+
+			var link = part.match( /^\[([^\]]+)\]\(([^)\s]+)\)$/ );
+
+			if ( link ) {
+				var href = safeHref( link[2] );
+
+				if ( href ) {
+					var anchor = el( 'a', null, link[1] );
+
+					anchor.href = href;
+					anchor.rel = 'noopener';
+					parent.appendChild( anchor );
+				} else {
+					parent.appendChild( document.createTextNode( link[1] ) );
+				}
+
+				return;
+			}
+
+			if ( /^\*\*[^*]+\*\*$/.test( part ) || /^__[^_]+__$/.test( part ) ) {
+				parent.appendChild( el( 'strong', null, part.slice( 2, -2 ) ) );
+
+				return;
+			}
+
+			if ( /^\*[^*\n]+\*$/.test( part ) || /^_[^_\n]+_$/.test( part ) ) {
+				parent.appendChild( el( 'em', null, part.slice( 1, -1 ) ) );
+
+				return;
+			}
+
+			if ( /^`[^`]+`$/.test( part ) ) {
+				parent.appendChild( el( 'code', null, part.slice( 1, -1 ) ) );
+
+				return;
+			}
+
+			parent.appendChild( document.createTextNode( part ) );
+		} );
+	}
+
+	function listKind( line ) {
+		if ( /^\s*[-*+]\s+/.test( line ) ) {
+			return 'ul';
+		}
+
+		if ( /^\s*\d+[.)]\s+/.test( line ) ) {
+			return 'ol';
+		}
+
+		return null;
+	}
+
+	function renderMarkdown( text, container ) {
+		var blocks = String( text ).replace( /\r\n?/g, '\n' ).split( /\n{2,}/ );
+		var rich = false;
+
+		blocks.forEach( function ( block ) {
+			var lines = block.split( '\n' ).filter( function ( line ) {
+				return line.trim().length;
+			} );
+
+			if ( ! lines.length ) {
+				return;
+			}
+
+			var kind = listKind( lines[0] );
+
+			if ( kind ) {
+				var list = el( kind, 'aiadv__list' );
+
+				lines.forEach( function ( line ) {
+					if ( ! listKind( line ) ) {
+						// A wrapped continuation line belongs to the item above.
+						var previous = list.lastChild;
+
+						if ( previous ) {
+							previous.appendChild( document.createTextNode( ' ' ) );
+							renderInline( line.trim(), previous );
+						}
+
+						return;
+					}
+
+					var item = el( 'li' );
+
+					renderInline( line.replace( /^\s*(?:[-*+]|\d+[.)])\s+/, '' ), item );
+					list.appendChild( item );
+				} );
+
+				container.appendChild( list );
+				rich = true;
+
+				return;
+			}
+
+			var heading = lines[0].match( /^\s*#{1,6}\s+(.*)$/ );
+
+			if ( heading && 1 === lines.length ) {
+				var head = el( 'p', 'aiadv__subhead' );
+
+				renderInline( heading[1], head );
+				container.appendChild( head );
+				rich = true;
+
+				return;
+			}
+
+			var paragraph = el( 'p', 'aiadv__text' );
+
+			lines.forEach( function ( line, index ) {
+				if ( index ) {
+					paragraph.appendChild( document.createElement( 'br' ) );
+				}
+
+				renderInline( line.trim(), paragraph );
+			} );
+
+			container.appendChild( paragraph );
+		} );
+
+		if ( rich || blocks.length > 1 ) {
+			container.classList.add( 'is-rich' );
+		}
+	}
+
 	function el( tag, className, text ) {
 		var node = document.createElement( tag );
 
@@ -140,11 +297,16 @@
 		this.notice.hidden = true;
 	};
 
-	Widget.prototype.addMessage = function ( role, text ) {
+	Widget.prototype.addMessage = function ( role, text, markdown ) {
 		var wrapper = el( 'div', 'aiadv__message aiadv__message--' + role );
 
 		wrapper.appendChild( el( 'span', 'screen-reader-text', 'assistant' === role ? strings.advisor : strings.you ) );
-		wrapper.appendChild( el( 'p', 'aiadv__text', text ) );
+
+		if ( markdown ) {
+			renderMarkdown( text, wrapper );
+		} else {
+			wrapper.appendChild( el( 'p', 'aiadv__text', text ) );
+		}
 
 		this.log.appendChild( wrapper );
 		this.log.scrollTop = this.log.scrollHeight;
@@ -251,7 +413,7 @@
 					return;
 				}
 
-				var wrapper = self.addMessage( 'assistant', result.data.answer );
+				var wrapper = self.addMessage( 'assistant', result.data.answer, true );
 				self.addActions( wrapper, result.data );
 
 				self.history.push( { role: 'user', content: question } );
