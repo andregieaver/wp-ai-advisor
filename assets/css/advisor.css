@@ -1,0 +1,104 @@
+/* Front-end styles for the [ai_advisor] widget. */
+
+.wp-ai-advisor {
+	border: 1px solid rgba( 0, 0, 0, 0.12 );
+	border-radius: 8px;
+	padding: 1.25rem;
+	max-width: 46rem;
+}
+
+.wp-ai-advisor__title {
+	margin: 0 0 0.75rem;
+	font-size: 1.125rem;
+}
+
+.wp-ai-advisor__log {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	max-height: 26rem;
+	overflow-y: auto;
+	margin-bottom: 1rem;
+}
+
+.wp-ai-advisor__log:empty {
+	margin-bottom: 0;
+}
+
+.wp-ai-advisor__message {
+	padding: 0.75rem 0.9rem;
+	border-radius: 6px;
+	background: rgba( 0, 0, 0, 0.04 );
+}
+
+.wp-ai-advisor__message--user {
+	background: rgba( 0, 0, 0, 0.07 );
+}
+
+.wp-ai-advisor__message.is-pending {
+	opacity: 0.65;
+}
+
+.wp-ai-advisor__role {
+	display: block;
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
+	margin-bottom: 0.25rem;
+}
+
+.wp-ai-advisor__text {
+	margin: 0;
+	white-space: pre-wrap;
+}
+
+.wp-ai-advisor__sources-title {
+	display: block;
+	margin-top: 0.75rem;
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
+}
+
+.wp-ai-advisor__sources {
+	margin: 0.25rem 0 0;
+	padding-left: 1.1rem;
+	font-size: 0.9rem;
+}
+
+.wp-ai-advisor__form {
+	display: flex;
+	gap: 0.5rem;
+	align-items: flex-end;
+}
+
+.wp-ai-advisor__input {
+	flex: 1;
+	resize: vertical;
+	min-height: 3rem;
+}
+
+.wp-ai-advisor__notice {
+	margin: 0.75rem 0 0;
+	color: #a00;
+}
+
+.wp-ai-advisor__notice[hidden] {
+	display: none;
+}
+
+@media ( prefers-color-scheme: dark ) {
+	.wp-ai-advisor {
+		border-color: rgba( 255, 255, 255, 0.18 );
+	}
+
+	.wp-ai-advisor__message {
+		background: rgba( 255, 255, 255, 0.06 );
+	}
+
+	.wp-ai-advisor__message--user {
+		background: rgba( 255, 255, 255, 0.1 );
+	}
+}
