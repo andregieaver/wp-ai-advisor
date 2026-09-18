@@ -26,9 +26,14 @@
 
 	function setRunning( state ) {
 		running = state;
-		stopped = false;
 
-		[ 'aiadv-build', 'aiadv-crawl', 'aiadv-local', 'aiadv-index', 'aiadv-clear', 'aiadv-test', 'aiadv-upload' ].forEach( function ( id ) {
+		// Only a fresh start clears the stop flag; clearing it on the way down
+		// would let a later phase ignore a Stop the user already pressed.
+		if ( state ) {
+			stopped = false;
+		}
+
+		[ 'aiadv-build', 'aiadv-crawl', 'aiadv-local', 'aiadv-resume', 'aiadv-retry', 'aiadv-clear', 'aiadv-test', 'aiadv-upload' ].forEach( function ( id ) {
 			var button = byId( id );
 
 			if ( button ) {
@@ -57,7 +62,8 @@
 		var values = {
 			total: stats.total,
 			indexed: stats.indexed,
-			pending: ( stats.pending || 0 ) + ( stats.fetched || 0 ),
+			pending: stats.pending,
+			fetched: stats.fetched,
 			error: stats.error,
 			chunks: stats.chunks
 		};
@@ -96,10 +102,24 @@
 		} );
 	}
 
+	var MAX_ATTEMPTS = 3;
+
+	function wait( ms ) {
+		return new Promise( function ( resolve ) {
+			window.setTimeout( resolve, ms );
+		} );
+	}
+
 	/**
-	 * Repeats a stepping endpoint until it reports done, the user stops, or it errors.
+	 * Repeats a stepping endpoint until it reports done or the user stops.
+	 *
+	 * A single failed request used to abandon the entire run and leave the queue
+	 * half-drained with no way back in, so each step is retried a few times
+	 * before giving up, and giving up says how to resume.
 	 */
-	function loop( path, label ) {
+	function loop( path, label, attempt ) {
+		attempt = attempt || 0;
+
 		if ( stopped ) {
 			log( strings.stopped );
 			setRunning( false );
@@ -107,20 +127,33 @@
 			return Promise.resolve();
 		}
 
-		return call( path, {} ).then( function ( data ) {
-			renderStats( data.stats );
+		return call( path, {} )
+			.then( function ( data ) {
+				renderStats( data.stats );
 
-			if ( data.done ) {
-				return null;
-			}
+				if ( data.done ) {
+					return null;
+				}
 
-			var item = data.item || {};
-			var name = item.title || item.url || '';
+				var item = data.item || {};
+				var name = item.title || item.url || '';
 
-			log( label.replace( '%s', name ) + ( item.error ? ' — ' + item.error : '' ) );
+				log( label.replace( '%s', name ) + ( item.error ? ' — ' + item.error : '' ) );
 
-			return loop( path, label );
-		} );
+				return loop( path, label );
+			} )
+			.catch( function ( error ) {
+				if ( attempt + 1 >= MAX_ATTEMPTS ) {
+					throw new Error( ( error.message || strings.failed ) + ' ' + strings.resumeHint );
+				}
+
+				log( strings.retrying.replace( '%s', error.message || strings.failed ) );
+
+				// Back off a little before trying the same step again.
+				return wait( 1000 * ( attempt + 1 ) ).then( function () {
+					return loop( path, label, attempt + 1 );
+				} );
+			} );
 	}
 
 	var PHASES = {
@@ -133,29 +166,48 @@
 	 */
 	function runPhases( phases ) {
 		var chain = Promise.resolve();
+		var problems = [];
+
+		// Each phase absorbs its own failure: a crawl that gives up must not stop
+		// local content from importing, or the queue is left half-drained.
+		function step( path, label ) {
+			return function () {
+				if ( stopped ) {
+					return null;
+				}
+
+				return loop( path, label ).catch( function ( error ) {
+					problems.push( error.message || strings.failed );
+					log( error.message || strings.failed );
+				} );
+			};
+		}
 
 		phases.forEach( function ( name ) {
 			var phase = PHASES[ name ];
 
-			if ( ! phase ) {
-				return;
+			if ( phase ) {
+				chain = chain.then( step( phase.step, strings[ phase.label ] ) );
 			}
-
-			chain = chain.then( function () {
-				return stopped ? null : loop( phase.step, strings[ phase.label ] );
-			} );
 		} );
 
 		return chain
+			.then( step( '/index/step', strings.indexing ) )
 			.then( function () {
-				return stopped ? null : loop( '/index/step', strings.indexing );
-			} )
-			.then( function () {
-				if ( ! stopped ) {
-					log( strings.done );
-					setRunning( false );
-					window.location.reload();
+				setRunning( false );
+
+				if ( stopped ) {
+					return;
 				}
+
+				if ( problems.length ) {
+					log( problems[ problems.length - 1 ] );
+
+					return;
+				}
+
+				log( strings.done );
+				window.location.reload();
 			} )
 			.catch( function ( error ) {
 				log( error.message || strings.failed );
@@ -201,10 +253,34 @@
 			} );
 	}
 
-	function indexOnly() {
+	/**
+	 * Picks up wherever the last run stopped: fetches whatever is still pending,
+	 * then embeds whatever is waiting. Clears nothing.
+	 */
+	function resume() {
 		setRunning( true );
+		log( strings.preparing );
 
-		runPhases( [] );
+		runPhases( [ 'crawl', 'local' ] );
+	}
+
+	/**
+	 * Requeues failed sources, then resumes.
+	 */
+	function retryFailed() {
+		setRunning( true );
+		log( strings.preparing );
+
+		call( '/sources/retry', {} )
+			.then( function ( data ) {
+				renderStats( data.stats );
+
+				return runPhases( [ 'crawl', 'local' ] );
+			} )
+			.catch( function ( error ) {
+				log( error.message || strings.failed );
+				setRunning( false );
+			} );
 	}
 
 	function upload() {
@@ -263,7 +339,8 @@
 			runOne( 'local', '/local/start' );
 		} );
 
-		bind( 'aiadv-index', indexOnly );
+		bind( 'aiadv-resume', resume );
+		bind( 'aiadv-retry', retryFailed );
 		bind( 'aiadv-upload', upload );
 
 		bind( 'aiadv-stop', function () {

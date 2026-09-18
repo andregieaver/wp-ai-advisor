@@ -14,7 +14,7 @@ msgstr ""
 msgid "AI Advisor"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:57 admin/class-wp-ai-advisor-admin.php:211
+#: admin/class-wp-ai-advisor-admin.php:57 admin/class-wp-ai-advisor-admin.php:213
 msgid "Settings"
 msgstr ""
 
@@ -27,414 +27,438 @@ msgid "Preparing…"
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:98
-msgid "Crawling %s"
+msgid "Retrying after: %s"
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:99
-msgid "Importing %s"
+msgid "Nothing was lost — press Resume to carry on from here."
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:100
-msgid "Indexing %s"
+msgid "Crawling %s"
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:101
-msgid "Done."
+msgid "Importing %s"
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:102
-msgid "Stopped."
+msgid "Indexing %s"
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:103
-msgid "Request failed."
+msgid "Done."
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:104
-msgid "Uploading…"
+msgid "Stopped."
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:105
-msgid "This deletes the whole knowledge base. Continue?"
+msgid "Request failed."
 msgstr ""
 
 #: admin/class-wp-ai-advisor-admin.php:106
+msgid "Uploading…"
+msgstr ""
+
+#: admin/class-wp-ai-advisor-admin.php:107
+msgid "This deletes the whole knowledge base. Continue?"
+msgstr ""
+
+#: admin/class-wp-ai-advisor-admin.php:108
 msgid "Add an API key first."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:129
+#: admin/class-wp-ai-advisor-admin.php:131
 msgid "OpenAI connection"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:130
+#: admin/class-wp-ai-advisor-admin.php:132
 msgid "Knowledge source"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:131
+#: admin/class-wp-ai-advisor-admin.php:133
 msgid "Answering"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:132 admin/class-wp-ai-advisor-admin.php:316
+#: admin/class-wp-ai-advisor-admin.php:134 admin/class-wp-ai-advisor-admin.php:353
 msgid "Language"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:133
+#: admin/class-wp-ai-advisor-admin.php:135
 msgid "Access"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:134
+#: admin/class-wp-ai-advisor-admin.php:136
 msgid "Appearance"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:147
+#: admin/class-wp-ai-advisor-admin.php:149
 msgid "API key"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:148
+#: admin/class-wp-ai-advisor-admin.php:150
 msgid "Chat model"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:149
+#: admin/class-wp-ai-advisor-admin.php:151
 msgid "Embedding model"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:150
+#: admin/class-wp-ai-advisor-admin.php:152
 msgid "Temperature"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:151
+#: admin/class-wp-ai-advisor-admin.php:153
 msgid "Max answer tokens"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:153
+#: admin/class-wp-ai-advisor-admin.php:155
 msgid "Build the index from"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:154
+#: admin/class-wp-ai-advisor-admin.php:156
 msgid "Local post types"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:155
+#: admin/class-wp-ai-advisor-admin.php:157
 msgid "Site URL to crawl"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:156
+#: admin/class-wp-ai-advisor-admin.php:158
 msgid "Maximum pages"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:157
+#: admin/class-wp-ai-advisor-admin.php:159
 msgid "Skip URLs containing"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:159
+#: admin/class-wp-ai-advisor-admin.php:161
 msgid "Restrict to site content"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:160
+#: admin/class-wp-ai-advisor-admin.php:162
 msgid "Off-topic reply"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:161
+#: admin/class-wp-ai-advisor-admin.php:163
 msgid "System prompt"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:162
+#: admin/class-wp-ai-advisor-admin.php:164
 msgid "Context passages"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:163
+#: admin/class-wp-ai-advisor-admin.php:165
 msgid "Relevance threshold"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:165
+#: admin/class-wp-ai-advisor-admin.php:167
 msgid "Reply language"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:167
+#: admin/class-wp-ai-advisor-admin.php:169
 msgid "Admin-only"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:168
+#: admin/class-wp-ai-advisor-admin.php:170
 msgid "Questions per hour"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:170
+#: admin/class-wp-ai-advisor-admin.php:172
 msgid "Eyebrow"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:171
+#: admin/class-wp-ai-advisor-admin.php:173
 msgid "Heading"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:172
+#: admin/class-wp-ai-advisor-admin.php:174
 msgid "Input placeholder"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:173
+#: admin/class-wp-ai-advisor-admin.php:175
 msgid "Suggested questions"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:174
+#: admin/class-wp-ai-advisor-admin.php:176
 msgid "Call to action"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:175
+#: admin/class-wp-ai-advisor-admin.php:177
 msgid "Accent colour"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:215
+#: admin/class-wp-ai-advisor-admin.php:217
 msgid "Knowledge base"
 msgstr ""
 
 #. translators: %s: shortcode example.
-#: admin/class-wp-ai-advisor-admin.php:226
+#: admin/class-wp-ai-advisor-admin.php:228
 msgid "Place the advisor on any page with %s."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:259 admin/class-wp-ai-advisor-admin.php:310
+#: admin/class-wp-ai-advisor-admin.php:266 admin/class-wp-ai-advisor-admin.php:321
 msgid "Sources"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:260
+#: admin/class-wp-ai-advisor-admin.php:267 admin/class-wp-ai-advisor-admin.php:330
 msgid "Indexed"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:261
-msgid "Waiting"
+#: admin/class-wp-ai-advisor-admin.php:268 admin/class-wp-ai-advisor-admin.php:328
+msgid "To fetch"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:262
+#: admin/class-wp-ai-advisor-admin.php:269 admin/class-wp-ai-advisor-admin.php:329
+msgid "To index"
+msgstr ""
+
+#: admin/class-wp-ai-advisor-admin.php:270 admin/class-wp-ai-advisor-admin.php:327
 msgid "Failed"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:263
+#: admin/class-wp-ai-advisor-admin.php:271
 msgid "Passages"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:266
+#: admin/class-wp-ai-advisor-admin.php:274
 msgid "Languages"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:271
+#: admin/class-wp-ai-advisor-admin.php:279
 msgid "Test connection"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:272
+#: admin/class-wp-ai-advisor-admin.php:280
 msgid "Build knowledge base"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:274
+#: admin/class-wp-ai-advisor-admin.php:282
 msgid "Crawl only"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:277
+#: admin/class-wp-ai-advisor-admin.php:285
 msgid "Import local content only"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:279
-msgid "Index waiting sources"
+#: admin/class-wp-ai-advisor-admin.php:287
+msgid "Resume"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:280
+#: admin/class-wp-ai-advisor-admin.php:289
+msgid "Retry failed"
+msgstr ""
+
+#: admin/class-wp-ai-advisor-admin.php:291
 msgid "Stop"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:281
+#: admin/class-wp-ai-advisor-admin.php:292
 msgid "Clear everything"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:286
+#: admin/class-wp-ai-advisor-admin.php:297
 msgid "Additional documents"
 msgstr ""
 
 #. translators: %s: comma-separated list of file extensions.
-#: admin/class-wp-ai-advisor-admin.php:291
+#: admin/class-wp-ai-advisor-admin.php:302
 msgid "Upload price lists, menus or policies the website does not spell out. Allowed: %s. Scanned PDFs hold images rather than text and cannot be read."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:298
+#: admin/class-wp-ai-advisor-admin.php:309
 msgid "Document language"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:307
+#: admin/class-wp-ai-advisor-admin.php:318
 msgid "Upload and index"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:314
+#: admin/class-wp-ai-advisor-admin.php:326
+msgid "All"
+msgstr ""
+
+#: admin/class-wp-ai-advisor-admin.php:351
 msgid "Title"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:315
+#: admin/class-wp-ai-advisor-admin.php:352
 msgid "Type"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:317
+#: admin/class-wp-ai-advisor-admin.php:354
 msgid "Status"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:318
+#: admin/class-wp-ai-advisor-admin.php:355
 msgid "Updated"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:325
+#: admin/class-wp-ai-advisor-admin.php:365
+msgid "No sources with this status."
+msgstr ""
+
+#: admin/class-wp-ai-advisor-admin.php:366
 msgid "Nothing indexed yet."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:350
+#: admin/class-wp-ai-advisor-admin.php:393
 msgid "Delete"
 msgstr ""
 
 #. translators: %s: comma-separated post type names.
-#: admin/class-wp-ai-advisor-admin.php:377
+#: admin/class-wp-ai-advisor-admin.php:441
 msgid "Local mode: reads published %s from this install, with no HTTP requests. Re-run after you change content."
 msgstr ""
 
 #. translators: %s: comma-separated post type names.
-#: admin/class-wp-ai-advisor-admin.php:378 admin/class-wp-ai-advisor-admin.php:386
+#: admin/class-wp-ai-advisor-admin.php:442 admin/class-wp-ai-advisor-admin.php:450
 msgid "(no post types selected)"
 msgstr ""
 
 #. translators: 1: site URL, 2: comma-separated post type names.
-#: admin/class-wp-ai-advisor-admin.php:384
+#: admin/class-wp-ai-advisor-admin.php:448
 msgid "Both modes: crawls %1$s for rendered navigation and reads published %2$s locally. Re-run after the site changes."
 msgstr ""
 
 #. translators: %s: site URL being crawled.
-#: admin/class-wp-ai-advisor-admin.php:392
+#: admin/class-wp-ai-advisor-admin.php:456
 msgid "Crawl mode: fetches %s, follows its internal links and stores the text. Re-run after the site changes."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:406
+#: admin/class-wp-ai-advisor-admin.php:470
 msgid "Create a key at platform.openai.com. For production sites, define WP_AI_ADVISOR_API_KEY in wp-config.php instead of storing the key in the database."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:466
+#: admin/class-wp-ai-advisor-admin.php:530
 msgid "is defined in wp-config.php and takes precedence over this field."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:477
+#: admin/class-wp-ai-advisor-admin.php:541
 msgid "A key is saved. Enter a new key to replace it."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:480
+#: admin/class-wp-ai-advisor-admin.php:544
 msgid "Leave blank to keep the saved key."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:490
+#: admin/class-wp-ai-advisor-admin.php:554
 msgid "Any chat model your account can use, for example gpt-4o-mini or gpt-4o."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:500
+#: admin/class-wp-ai-advisor-admin.php:564
 msgid "Changing this invalidates the stored vectors — re-crawl afterwards."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:510
+#: admin/class-wp-ai-advisor-admin.php:574
 msgid "Lower is more literal. 0.2 suits factual answers."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:532
+#: admin/class-wp-ai-advisor-admin.php:596
 msgid "Crawl the site over HTTP"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:533
+#: admin/class-wp-ai-advisor-admin.php:597
 msgid "Sees the site exactly as a visitor does, including rendered navigation. Needs the site to be reachable from the server."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:536
+#: admin/class-wp-ai-advisor-admin.php:600
 msgid "Read posts from this WordPress install"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:537
+#: admin/class-wp-ai-advisor-admin.php:601
 msgid "No HTTP requests and no page limit. Reaches unlinked pages a crawl would never find, but sees only post content, not theme-rendered menus."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:540
+#: admin/class-wp-ai-advisor-admin.php:604
 msgid "Both"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:541
+#: admin/class-wp-ai-advisor-admin.php:605
 msgid "Crawl for navigation, local posts for completeness. Pages covered twice cost extra tokens to index and may return near-duplicate passages."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:588
+#: admin/class-wp-ai-advisor-admin.php:652
 msgid "Only used in local mode. Published posts only; drafts, private and password-protected posts are skipped."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:598
+#: admin/class-wp-ai-advisor-admin.php:662
 msgid "Leave blank to crawl this site. Only used in crawl mode."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:608
+#: admin/class-wp-ai-advisor-admin.php:672
 msgid "Caps how many pages a crawl fetches. Each page costs an embedding call."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:623
+#: admin/class-wp-ai-advisor-admin.php:687
 msgid "One fragment per line. Any URL containing one is skipped."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:636
+#: admin/class-wp-ai-advisor-admin.php:700
 msgid "Only answer from indexed site content and uploaded documents."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:639
+#: admin/class-wp-ai-advisor-admin.php:703
 msgid "With this off, the model may also answer from general knowledge."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:654
+#: admin/class-wp-ai-advisor-admin.php:718
 msgid "Shown when a question is outside the knowledge base. Leave blank for the default."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:669
+#: admin/class-wp-ai-advisor-admin.php:733
 msgid "Sets tone and role. Grounding rules are appended automatically. Leave blank for the default."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:679
+#: admin/class-wp-ai-advisor-admin.php:743
 msgid "How many matching passages are sent with each question."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:689
+#: admin/class-wp-ai-advisor-admin.php:753
 msgid "Passages scoring below this are ignored. Raise it if answers drift, lower it if the advisor refuses too often."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:701
+#: admin/class-wp-ai-advisor-admin.php:765
 msgid "Match the visitor (recommended)"
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:702
+#: admin/class-wp-ai-advisor-admin.php:766
 msgid "Always use the language of the page"
 msgstr ""
 
 #. translators: 1: language name, 2: language code.
-#: admin/class-wp-ai-advisor-admin.php:707
+#: admin/class-wp-ai-advisor-admin.php:771
 msgid "Always %1$s (%2$s)"
 msgstr ""
 
 #. translators: %s: language name of the WordPress install.
-#: admin/class-wp-ai-advisor-admin.php:726
+#: admin/class-wp-ai-advisor-admin.php:790
 msgid "This site runs in %s. On a translated site the widget reports the language of the page it sits on, which is what \"match the visitor\" falls back to."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:742
+#: admin/class-wp-ai-advisor-admin.php:806
 msgid "Show the widget to administrators only."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:745
+#: admin/class-wp-ai-advisor-admin.php:809
 msgid "Use this to test on a live site: visitors see nothing and the endpoint refuses them."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:755
+#: admin/class-wp-ai-advisor-admin.php:819
 msgid "Per visitor, per hour. 0 disables the limit. Administrators are never limited."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:765
+#: admin/class-wp-ai-advisor-admin.php:829
 msgid "Small label above the heading, e.g. \"Ask us\"."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:798
+#: admin/class-wp-ai-advisor-admin.php:862
 msgid "One per line, up to six. Shown as buttons on the closed card."
 msgstr ""
 
-#: admin/class-wp-ai-advisor-admin.php:815
+#: admin/class-wp-ai-advisor-admin.php:879
 msgid "Label and URL for the highlighted button under each answer, e.g. \"Book a table\". Leave blank to hide it."
 msgstr ""
 
@@ -653,36 +677,36 @@ msgstr ""
 msgid "The assistant is temporarily unavailable. Please try again."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:108
+#: includes/class-wp-ai-advisor-rest-controller.php:109
 msgid "You are not allowed to manage the advisor."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:125
+#: includes/class-wp-ai-advisor-rest-controller.php:126
 msgid "The advisor is not available."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:145
+#: includes/class-wp-ai-advisor-rest-controller.php:146
 msgid "Please enter a question."
 msgstr ""
 
 #. translators: %d: maximum number of characters.
-#: includes/class-wp-ai-advisor-rest-controller.php:155
+#: includes/class-wp-ai-advisor-rest-controller.php:156
 msgid "Questions are limited to %d characters."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:193
+#: includes/class-wp-ai-advisor-rest-controller.php:194
 msgid "The assistant is not configured yet."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:310
+#: includes/class-wp-ai-advisor-rest-controller.php:311
 msgid "Connected to OpenAI."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:441
+#: includes/class-wp-ai-advisor-rest-controller.php:442
 msgid "No file was uploaded."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:564
+#: includes/class-wp-ai-advisor-rest-controller.php:581
 msgid "You have reached the question limit for now. Please try again later."
 msgstr ""
 

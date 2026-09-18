@@ -18,7 +18,7 @@ msgstr ""
 msgid "AI Advisor"
 msgstr "AI-rådgiver"
 
-#: admin/class-wp-ai-advisor-admin.php:57 admin/class-wp-ai-advisor-admin.php:211
+#: admin/class-wp-ai-advisor-admin.php:57 admin/class-wp-ai-advisor-admin.php:213
 msgid "Settings"
 msgstr "Innstillinger"
 
@@ -31,414 +31,438 @@ msgid "Preparing…"
 msgstr "Forbereder …"
 
 #: admin/class-wp-ai-advisor-admin.php:98
+msgid "Retrying after: %s"
+msgstr "Prøver igjen etter: %s"
+
+#: admin/class-wp-ai-advisor-admin.php:99
+msgid "Nothing was lost — press Resume to carry on from here."
+msgstr "Ingenting gikk tapt — trykk «Fortsett» for å ta opp tråden herfra."
+
+#: admin/class-wp-ai-advisor-admin.php:100
 msgid "Crawling %s"
 msgstr "Henter %s"
 
-#: admin/class-wp-ai-advisor-admin.php:99
+#: admin/class-wp-ai-advisor-admin.php:101
 msgid "Importing %s"
 msgstr "Importerer %s"
 
-#: admin/class-wp-ai-advisor-admin.php:100
+#: admin/class-wp-ai-advisor-admin.php:102
 msgid "Indexing %s"
 msgstr "Indekserer %s"
 
-#: admin/class-wp-ai-advisor-admin.php:101
+#: admin/class-wp-ai-advisor-admin.php:103
 msgid "Done."
 msgstr "Ferdig."
 
-#: admin/class-wp-ai-advisor-admin.php:102
+#: admin/class-wp-ai-advisor-admin.php:104
 msgid "Stopped."
 msgstr "Stoppet."
 
-#: admin/class-wp-ai-advisor-admin.php:103
+#: admin/class-wp-ai-advisor-admin.php:105
 msgid "Request failed."
 msgstr "Forespørselen mislyktes."
 
-#: admin/class-wp-ai-advisor-admin.php:104
+#: admin/class-wp-ai-advisor-admin.php:106
 msgid "Uploading…"
 msgstr "Laster opp …"
 
-#: admin/class-wp-ai-advisor-admin.php:105
+#: admin/class-wp-ai-advisor-admin.php:107
 msgid "This deletes the whole knowledge base. Continue?"
 msgstr "Dette sletter hele kunnskapsbasen. Vil du fortsette?"
 
-#: admin/class-wp-ai-advisor-admin.php:106
+#: admin/class-wp-ai-advisor-admin.php:108
 msgid "Add an API key first."
 msgstr "Legg inn en API-nøkkel først."
 
-#: admin/class-wp-ai-advisor-admin.php:129
+#: admin/class-wp-ai-advisor-admin.php:131
 msgid "OpenAI connection"
 msgstr "OpenAI-tilkobling"
 
-#: admin/class-wp-ai-advisor-admin.php:130
+#: admin/class-wp-ai-advisor-admin.php:132
 msgid "Knowledge source"
 msgstr "Kunnskapskilde"
 
-#: admin/class-wp-ai-advisor-admin.php:131
+#: admin/class-wp-ai-advisor-admin.php:133
 msgid "Answering"
 msgstr "Svar"
 
-#: admin/class-wp-ai-advisor-admin.php:132 admin/class-wp-ai-advisor-admin.php:316
+#: admin/class-wp-ai-advisor-admin.php:134 admin/class-wp-ai-advisor-admin.php:353
 msgid "Language"
 msgstr "Språk"
 
-#: admin/class-wp-ai-advisor-admin.php:133
+#: admin/class-wp-ai-advisor-admin.php:135
 msgid "Access"
 msgstr "Tilgang"
 
-#: admin/class-wp-ai-advisor-admin.php:134
+#: admin/class-wp-ai-advisor-admin.php:136
 msgid "Appearance"
 msgstr "Utseende"
 
-#: admin/class-wp-ai-advisor-admin.php:147
+#: admin/class-wp-ai-advisor-admin.php:149
 msgid "API key"
 msgstr "API-nøkkel"
 
-#: admin/class-wp-ai-advisor-admin.php:148
+#: admin/class-wp-ai-advisor-admin.php:150
 msgid "Chat model"
 msgstr "Chat-modell"
 
-#: admin/class-wp-ai-advisor-admin.php:149
+#: admin/class-wp-ai-advisor-admin.php:151
 msgid "Embedding model"
 msgstr "Embedding-modell"
 
-#: admin/class-wp-ai-advisor-admin.php:150
+#: admin/class-wp-ai-advisor-admin.php:152
 msgid "Temperature"
 msgstr "Temperatur"
 
-#: admin/class-wp-ai-advisor-admin.php:151
+#: admin/class-wp-ai-advisor-admin.php:153
 msgid "Max answer tokens"
 msgstr "Maks tokens per svar"
 
-#: admin/class-wp-ai-advisor-admin.php:153
+#: admin/class-wp-ai-advisor-admin.php:155
 msgid "Build the index from"
 msgstr "Bygg indeksen fra"
 
-#: admin/class-wp-ai-advisor-admin.php:154
+#: admin/class-wp-ai-advisor-admin.php:156
 msgid "Local post types"
 msgstr "Lokale innholdstyper"
 
-#: admin/class-wp-ai-advisor-admin.php:155
+#: admin/class-wp-ai-advisor-admin.php:157
 msgid "Site URL to crawl"
 msgstr "Nettadresse som skal gjennomsøkes"
 
-#: admin/class-wp-ai-advisor-admin.php:156
+#: admin/class-wp-ai-advisor-admin.php:158
 msgid "Maximum pages"
 msgstr "Maks antall sider"
 
-#: admin/class-wp-ai-advisor-admin.php:157
+#: admin/class-wp-ai-advisor-admin.php:159
 msgid "Skip URLs containing"
 msgstr "Hopp over nettadresser som inneholder"
 
-#: admin/class-wp-ai-advisor-admin.php:159
+#: admin/class-wp-ai-advisor-admin.php:161
 msgid "Restrict to site content"
 msgstr "Begrens til innhold fra nettstedet"
 
-#: admin/class-wp-ai-advisor-admin.php:160
+#: admin/class-wp-ai-advisor-admin.php:162
 msgid "Off-topic reply"
 msgstr "Svar utenfor tema"
 
-#: admin/class-wp-ai-advisor-admin.php:161
+#: admin/class-wp-ai-advisor-admin.php:163
 msgid "System prompt"
 msgstr "Systemprompt"
 
-#: admin/class-wp-ai-advisor-admin.php:162
+#: admin/class-wp-ai-advisor-admin.php:164
 msgid "Context passages"
 msgstr "Kontekstutdrag"
 
-#: admin/class-wp-ai-advisor-admin.php:163
+#: admin/class-wp-ai-advisor-admin.php:165
 msgid "Relevance threshold"
 msgstr "Relevansterskel"
 
-#: admin/class-wp-ai-advisor-admin.php:165
+#: admin/class-wp-ai-advisor-admin.php:167
 msgid "Reply language"
 msgstr "Svarspråk"
 
-#: admin/class-wp-ai-advisor-admin.php:167
+#: admin/class-wp-ai-advisor-admin.php:169
 msgid "Admin-only"
 msgstr "Kun for administratorer"
 
-#: admin/class-wp-ai-advisor-admin.php:168
+#: admin/class-wp-ai-advisor-admin.php:170
 msgid "Questions per hour"
 msgstr "Spørsmål per time"
 
-#: admin/class-wp-ai-advisor-admin.php:170
+#: admin/class-wp-ai-advisor-admin.php:172
 msgid "Eyebrow"
 msgstr "Overskriftsetikett"
 
-#: admin/class-wp-ai-advisor-admin.php:171
+#: admin/class-wp-ai-advisor-admin.php:173
 msgid "Heading"
 msgstr "Overskrift"
 
-#: admin/class-wp-ai-advisor-admin.php:172
+#: admin/class-wp-ai-advisor-admin.php:174
 msgid "Input placeholder"
 msgstr "Plassholdertekst"
 
-#: admin/class-wp-ai-advisor-admin.php:173
+#: admin/class-wp-ai-advisor-admin.php:175
 msgid "Suggested questions"
 msgstr "Forslag til spørsmål"
 
-#: admin/class-wp-ai-advisor-admin.php:174
+#: admin/class-wp-ai-advisor-admin.php:176
 msgid "Call to action"
 msgstr "Handlingsknapp"
 
-#: admin/class-wp-ai-advisor-admin.php:175
+#: admin/class-wp-ai-advisor-admin.php:177
 msgid "Accent colour"
 msgstr "Aksentfarge"
 
-#: admin/class-wp-ai-advisor-admin.php:215
+#: admin/class-wp-ai-advisor-admin.php:217
 msgid "Knowledge base"
 msgstr "Kunnskapsbase"
 
 #. translators: %s: shortcode example.
-#: admin/class-wp-ai-advisor-admin.php:226
+#: admin/class-wp-ai-advisor-admin.php:228
 msgid "Place the advisor on any page with %s."
 msgstr "Legg rådgiveren på en hvilken som helst side med %s."
 
-#: admin/class-wp-ai-advisor-admin.php:259 admin/class-wp-ai-advisor-admin.php:310
+#: admin/class-wp-ai-advisor-admin.php:266 admin/class-wp-ai-advisor-admin.php:321
 msgid "Sources"
 msgstr "Kilder"
 
-#: admin/class-wp-ai-advisor-admin.php:260
+#: admin/class-wp-ai-advisor-admin.php:267 admin/class-wp-ai-advisor-admin.php:330
 msgid "Indexed"
 msgstr "Indeksert"
 
-#: admin/class-wp-ai-advisor-admin.php:261
-msgid "Waiting"
-msgstr "Venter"
+#: admin/class-wp-ai-advisor-admin.php:268 admin/class-wp-ai-advisor-admin.php:328
+msgid "To fetch"
+msgstr "Skal hentes"
 
-#: admin/class-wp-ai-advisor-admin.php:262
+#: admin/class-wp-ai-advisor-admin.php:269 admin/class-wp-ai-advisor-admin.php:329
+msgid "To index"
+msgstr "Skal indekseres"
+
+#: admin/class-wp-ai-advisor-admin.php:270 admin/class-wp-ai-advisor-admin.php:327
 msgid "Failed"
 msgstr "Mislyktes"
 
-#: admin/class-wp-ai-advisor-admin.php:263
+#: admin/class-wp-ai-advisor-admin.php:271
 msgid "Passages"
 msgstr "Utdrag"
 
-#: admin/class-wp-ai-advisor-admin.php:266
+#: admin/class-wp-ai-advisor-admin.php:274
 msgid "Languages"
 msgstr "Språk"
 
-#: admin/class-wp-ai-advisor-admin.php:271
+#: admin/class-wp-ai-advisor-admin.php:279
 msgid "Test connection"
 msgstr "Test tilkoblingen"
 
-#: admin/class-wp-ai-advisor-admin.php:272
+#: admin/class-wp-ai-advisor-admin.php:280
 msgid "Build knowledge base"
 msgstr "Bygg kunnskapsbasen"
 
-#: admin/class-wp-ai-advisor-admin.php:274
+#: admin/class-wp-ai-advisor-admin.php:282
 msgid "Crawl only"
 msgstr "Kun gjennomsøking"
 
-#: admin/class-wp-ai-advisor-admin.php:277
+#: admin/class-wp-ai-advisor-admin.php:285
 msgid "Import local content only"
 msgstr "Kun import av lokalt innhold"
 
-#: admin/class-wp-ai-advisor-admin.php:279
-msgid "Index waiting sources"
-msgstr "Indekser ventende kilder"
+#: admin/class-wp-ai-advisor-admin.php:287
+msgid "Resume"
+msgstr "Fortsett"
 
-#: admin/class-wp-ai-advisor-admin.php:280
+#: admin/class-wp-ai-advisor-admin.php:289
+msgid "Retry failed"
+msgstr "Prøv mislykkede på nytt"
+
+#: admin/class-wp-ai-advisor-admin.php:291
 msgid "Stop"
 msgstr "Stopp"
 
-#: admin/class-wp-ai-advisor-admin.php:281
+#: admin/class-wp-ai-advisor-admin.php:292
 msgid "Clear everything"
 msgstr "Tøm alt"
 
-#: admin/class-wp-ai-advisor-admin.php:286
+#: admin/class-wp-ai-advisor-admin.php:297
 msgid "Additional documents"
 msgstr "Tilleggsdokumenter"
 
 #. translators: %s: comma-separated list of file extensions.
-#: admin/class-wp-ai-advisor-admin.php:291
+#: admin/class-wp-ai-advisor-admin.php:302
 msgid "Upload price lists, menus or policies the website does not spell out. Allowed: %s. Scanned PDFs hold images rather than text and cannot be read."
 msgstr "Last opp prislister, menyer eller vilkår som ikke står på nettstedet. Tillatt: %s. Skannede PDF-er inneholder bilder i stedet for tekst og kan ikke leses."
 
-#: admin/class-wp-ai-advisor-admin.php:298
+#: admin/class-wp-ai-advisor-admin.php:309
 msgid "Document language"
 msgstr "Dokumentspråk"
 
-#: admin/class-wp-ai-advisor-admin.php:307
+#: admin/class-wp-ai-advisor-admin.php:318
 msgid "Upload and index"
 msgstr "Last opp og indekser"
 
-#: admin/class-wp-ai-advisor-admin.php:314
+#: admin/class-wp-ai-advisor-admin.php:326
+msgid "All"
+msgstr "Alle"
+
+#: admin/class-wp-ai-advisor-admin.php:351
 msgid "Title"
 msgstr "Tittel"
 
-#: admin/class-wp-ai-advisor-admin.php:315
+#: admin/class-wp-ai-advisor-admin.php:352
 msgid "Type"
 msgstr "Type"
 
-#: admin/class-wp-ai-advisor-admin.php:317
+#: admin/class-wp-ai-advisor-admin.php:354
 msgid "Status"
 msgstr "Status"
 
-#: admin/class-wp-ai-advisor-admin.php:318
+#: admin/class-wp-ai-advisor-admin.php:355
 msgid "Updated"
 msgstr "Oppdatert"
 
-#: admin/class-wp-ai-advisor-admin.php:325
+#: admin/class-wp-ai-advisor-admin.php:365
+msgid "No sources with this status."
+msgstr "Ingen kilder med denne statusen."
+
+#: admin/class-wp-ai-advisor-admin.php:366
 msgid "Nothing indexed yet."
 msgstr "Ingenting er indeksert ennå."
 
-#: admin/class-wp-ai-advisor-admin.php:350
+#: admin/class-wp-ai-advisor-admin.php:393
 msgid "Delete"
 msgstr "Slett"
 
 #. translators: %s: comma-separated post type names.
-#: admin/class-wp-ai-advisor-admin.php:377
+#: admin/class-wp-ai-advisor-admin.php:441
 msgid "Local mode: reads published %s from this install, with no HTTP requests. Re-run after you change content."
 msgstr "Lokal modus: leser publiserte %s fra denne installasjonen, uten HTTP-forespørsler. Kjør på nytt når du endrer innhold."
 
 #. translators: %s: comma-separated post type names.
-#: admin/class-wp-ai-advisor-admin.php:378 admin/class-wp-ai-advisor-admin.php:386
+#: admin/class-wp-ai-advisor-admin.php:442 admin/class-wp-ai-advisor-admin.php:450
 msgid "(no post types selected)"
 msgstr "(ingen innholdstyper er valgt)"
 
 #. translators: 1: site URL, 2: comma-separated post type names.
-#: admin/class-wp-ai-advisor-admin.php:384
+#: admin/class-wp-ai-advisor-admin.php:448
 msgid "Both modes: crawls %1$s for rendered navigation and reads published %2$s locally. Re-run after the site changes."
 msgstr "Begge modi: gjennomsøker %1$s for ferdig vist navigasjon og leser publiserte %2$s lokalt. Kjør på nytt når nettstedet endres."
 
 #. translators: %s: site URL being crawled.
-#: admin/class-wp-ai-advisor-admin.php:392
+#: admin/class-wp-ai-advisor-admin.php:456
 msgid "Crawl mode: fetches %s, follows its internal links and stores the text. Re-run after the site changes."
 msgstr "Gjennomsøkingsmodus: henter %s, følger interne lenker og lagrer teksten. Kjør på nytt når nettstedet endres."
 
-#: admin/class-wp-ai-advisor-admin.php:406
+#: admin/class-wp-ai-advisor-admin.php:470
 msgid "Create a key at platform.openai.com. For production sites, define WP_AI_ADVISOR_API_KEY in wp-config.php instead of storing the key in the database."
 msgstr "Opprett en nøkkel på platform.openai.com. På nettsteder i drift bør du definere WP_AI_ADVISOR_API_KEY i wp-config.php i stedet for å lagre nøkkelen i databasen."
 
-#: admin/class-wp-ai-advisor-admin.php:466
+#: admin/class-wp-ai-advisor-admin.php:530
 msgid "is defined in wp-config.php and takes precedence over this field."
 msgstr "er definert i wp-config.php og overstyrer dette feltet."
 
-#: admin/class-wp-ai-advisor-admin.php:477
+#: admin/class-wp-ai-advisor-admin.php:541
 msgid "A key is saved. Enter a new key to replace it."
 msgstr "En nøkkel er lagret. Skriv inn en ny nøkkel for å erstatte den."
 
-#: admin/class-wp-ai-advisor-admin.php:480
+#: admin/class-wp-ai-advisor-admin.php:544
 msgid "Leave blank to keep the saved key."
 msgstr "La feltet stå tomt for å beholde den lagrede nøkkelen."
 
-#: admin/class-wp-ai-advisor-admin.php:490
+#: admin/class-wp-ai-advisor-admin.php:554
 msgid "Any chat model your account can use, for example gpt-4o-mini or gpt-4o."
 msgstr "Enhver chat-modell kontoen din har tilgang til, for eksempel gpt-4o-mini eller gpt-4o."
 
-#: admin/class-wp-ai-advisor-admin.php:500
+#: admin/class-wp-ai-advisor-admin.php:564
 msgid "Changing this invalidates the stored vectors — re-crawl afterwards."
 msgstr "Endrer du denne, blir de lagrede vektorene ugyldige — bygg kunnskapsbasen på nytt etterpå."
 
-#: admin/class-wp-ai-advisor-admin.php:510
+#: admin/class-wp-ai-advisor-admin.php:574
 msgid "Lower is more literal. 0.2 suits factual answers."
 msgstr "Lavere verdi gir mer bokstavelige svar. 0,2 passer for faktasvar."
 
-#: admin/class-wp-ai-advisor-admin.php:532
+#: admin/class-wp-ai-advisor-admin.php:596
 msgid "Crawl the site over HTTP"
 msgstr "Gjennomsøk nettstedet over HTTP"
 
-#: admin/class-wp-ai-advisor-admin.php:533
+#: admin/class-wp-ai-advisor-admin.php:597
 msgid "Sees the site exactly as a visitor does, including rendered navigation. Needs the site to be reachable from the server."
 msgstr "Ser nettstedet nøyaktig slik en besøkende gjør, inkludert ferdig vist navigasjon. Krever at nettstedet er tilgjengelig fra serveren."
 
-#: admin/class-wp-ai-advisor-admin.php:536
+#: admin/class-wp-ai-advisor-admin.php:600
 msgid "Read posts from this WordPress install"
 msgstr "Les innlegg fra denne WordPress-installasjonen"
 
-#: admin/class-wp-ai-advisor-admin.php:537
+#: admin/class-wp-ai-advisor-admin.php:601
 msgid "No HTTP requests and no page limit. Reaches unlinked pages a crawl would never find, but sees only post content, not theme-rendered menus."
 msgstr "Ingen HTTP-forespørsler og ingen sidegrense. Finner sider uten lenker som en gjennomsøking aldri ville funnet, men ser bare innholdet i innlegg, ikke menyer som temaet genererer."
 
-#: admin/class-wp-ai-advisor-admin.php:540
+#: admin/class-wp-ai-advisor-admin.php:604
 msgid "Both"
 msgstr "Begge"
 
-#: admin/class-wp-ai-advisor-admin.php:541
+#: admin/class-wp-ai-advisor-admin.php:605
 msgid "Crawl for navigation, local posts for completeness. Pages covered twice cost extra tokens to index and may return near-duplicate passages."
 msgstr "Gjennomsøking for navigasjon, lokale innlegg for fullstendighet. Sider som dekkes to ganger koster ekstra tokens å indeksere og kan gi nesten like utdrag."
 
-#: admin/class-wp-ai-advisor-admin.php:588
+#: admin/class-wp-ai-advisor-admin.php:652
 msgid "Only used in local mode. Published posts only; drafts, private and password-protected posts are skipped."
 msgstr "Brukes bare i lokal modus. Kun publiserte innlegg; utkast, private og passordbeskyttede innlegg hoppes over."
 
-#: admin/class-wp-ai-advisor-admin.php:598
+#: admin/class-wp-ai-advisor-admin.php:662
 msgid "Leave blank to crawl this site. Only used in crawl mode."
 msgstr "La feltet stå tomt for å gjennomsøke dette nettstedet. Brukes bare i gjennomsøkingsmodus."
 
-#: admin/class-wp-ai-advisor-admin.php:608
+#: admin/class-wp-ai-advisor-admin.php:672
 msgid "Caps how many pages a crawl fetches. Each page costs an embedding call."
 msgstr "Begrenser hvor mange sider en gjennomsøking henter. Hver side koster et embedding-kall."
 
-#: admin/class-wp-ai-advisor-admin.php:623
+#: admin/class-wp-ai-advisor-admin.php:687
 msgid "One fragment per line. Any URL containing one is skipped."
 msgstr "Én tekstbit per linje. Alle nettadresser som inneholder en av dem, hoppes over."
 
-#: admin/class-wp-ai-advisor-admin.php:636
+#: admin/class-wp-ai-advisor-admin.php:700
 msgid "Only answer from indexed site content and uploaded documents."
 msgstr "Svar kun ut fra indeksert innhold fra nettstedet og opplastede dokumenter."
 
-#: admin/class-wp-ai-advisor-admin.php:639
+#: admin/class-wp-ai-advisor-admin.php:703
 msgid "With this off, the model may also answer from general knowledge."
 msgstr "Er denne slått av, kan modellen også svare ut fra generell kunnskap."
 
-#: admin/class-wp-ai-advisor-admin.php:654
+#: admin/class-wp-ai-advisor-admin.php:718
 msgid "Shown when a question is outside the knowledge base. Leave blank for the default."
 msgstr "Vises når et spørsmål faller utenfor kunnskapsbasen. La feltet stå tomt for standardteksten."
 
-#: admin/class-wp-ai-advisor-admin.php:669
+#: admin/class-wp-ai-advisor-admin.php:733
 msgid "Sets tone and role. Grounding rules are appended automatically. Leave blank for the default."
 msgstr "Angir tone og rolle. Regler for forankring legges til automatisk. La feltet stå tomt for standardteksten."
 
-#: admin/class-wp-ai-advisor-admin.php:679
+#: admin/class-wp-ai-advisor-admin.php:743
 msgid "How many matching passages are sent with each question."
 msgstr "Hvor mange treff som sendes med hvert spørsmål."
 
-#: admin/class-wp-ai-advisor-admin.php:689
+#: admin/class-wp-ai-advisor-admin.php:753
 msgid "Passages scoring below this are ignored. Raise it if answers drift, lower it if the advisor refuses too often."
 msgstr "Utdrag med lavere poengsum ignoreres. Øk verdien hvis svarene sklir ut, senk den hvis rådgiveren avviser for ofte."
 
-#: admin/class-wp-ai-advisor-admin.php:701
+#: admin/class-wp-ai-advisor-admin.php:765
 msgid "Match the visitor (recommended)"
 msgstr "Følg den besøkende (anbefalt)"
 
-#: admin/class-wp-ai-advisor-admin.php:702
+#: admin/class-wp-ai-advisor-admin.php:766
 msgid "Always use the language of the page"
 msgstr "Bruk alltid språket på siden"
 
 #. translators: 1: language name, 2: language code.
-#: admin/class-wp-ai-advisor-admin.php:707
+#: admin/class-wp-ai-advisor-admin.php:771
 msgid "Always %1$s (%2$s)"
 msgstr "Alltid %1$s (%2$s)"
 
 #. translators: %s: language name of the WordPress install.
-#: admin/class-wp-ai-advisor-admin.php:726
+#: admin/class-wp-ai-advisor-admin.php:790
 msgid "This site runs in %s. On a translated site the widget reports the language of the page it sits on, which is what \"match the visitor\" falls back to."
 msgstr "Dette nettstedet kjører på %s. På et oversatt nettsted rapporterer modulen språket til siden den står på, og det er dette «følg den besøkende» faller tilbake på."
 
-#: admin/class-wp-ai-advisor-admin.php:742
+#: admin/class-wp-ai-advisor-admin.php:806
 msgid "Show the widget to administrators only."
 msgstr "Vis modulen kun for administratorer."
 
-#: admin/class-wp-ai-advisor-admin.php:745
+#: admin/class-wp-ai-advisor-admin.php:809
 msgid "Use this to test on a live site: visitors see nothing and the endpoint refuses them."
 msgstr "Bruk denne for å teste på et nettsted i drift: besøkende ser ingenting, og endepunktet avviser dem."
 
-#: admin/class-wp-ai-advisor-admin.php:755
+#: admin/class-wp-ai-advisor-admin.php:819
 msgid "Per visitor, per hour. 0 disables the limit. Administrators are never limited."
 msgstr "Per besøkende, per time. 0 slår av grensen. Administratorer begrenses aldri."
 
-#: admin/class-wp-ai-advisor-admin.php:765
+#: admin/class-wp-ai-advisor-admin.php:829
 msgid "Small label above the heading, e.g. \"Ask us\"."
 msgstr "Liten etikett over overskriften, for eksempel «Spør oss»."
 
-#: admin/class-wp-ai-advisor-admin.php:798
+#: admin/class-wp-ai-advisor-admin.php:862
 msgid "One per line, up to six. Shown as buttons on the closed card."
 msgstr "Ett per linje, opptil seks. Vises som knapper på det lukkede kortet."
 
-#: admin/class-wp-ai-advisor-admin.php:815
+#: admin/class-wp-ai-advisor-admin.php:879
 msgid "Label and URL for the highlighted button under each answer, e.g. \"Book a table\". Leave blank to hide it."
 msgstr "Tekst og nettadresse for den fremhevede knappen under hvert svar, for eksempel «Bestill bord». La feltene stå tomme for å skjule den."
 
@@ -657,36 +681,36 @@ msgstr "Assistenten er opptatt akkurat nå. Prøv igjen om litt."
 msgid "The assistant is temporarily unavailable. Please try again."
 msgstr "Assistenten er midlertidig utilgjengelig. Prøv igjen."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:108
+#: includes/class-wp-ai-advisor-rest-controller.php:109
 msgid "You are not allowed to manage the advisor."
 msgstr "Du har ikke tilgang til å administrere rådgiveren."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:125
+#: includes/class-wp-ai-advisor-rest-controller.php:126
 msgid "The advisor is not available."
 msgstr "Rådgiveren er ikke tilgjengelig."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:145
+#: includes/class-wp-ai-advisor-rest-controller.php:146
 msgid "Please enter a question."
 msgstr "Skriv inn et spørsmål."
 
 #. translators: %d: maximum number of characters.
-#: includes/class-wp-ai-advisor-rest-controller.php:155
+#: includes/class-wp-ai-advisor-rest-controller.php:156
 msgid "Questions are limited to %d characters."
 msgstr "Spørsmål kan være maks %d tegn."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:193
+#: includes/class-wp-ai-advisor-rest-controller.php:194
 msgid "The assistant is not configured yet."
 msgstr "Assistenten er ikke satt opp ennå."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:310
+#: includes/class-wp-ai-advisor-rest-controller.php:311
 msgid "Connected to OpenAI."
 msgstr "Koblet til OpenAI."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:441
+#: includes/class-wp-ai-advisor-rest-controller.php:442
 msgid "No file was uploaded."
 msgstr "Ingen fil ble lastet opp."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:564
+#: includes/class-wp-ai-advisor-rest-controller.php:581
 msgid "You have reached the question limit for now. Please try again later."
 msgstr "Du har nådd grensen for antall spørsmål nå. Prøv igjen senere."
 

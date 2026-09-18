@@ -61,6 +61,7 @@ class WP_AI_Advisor_REST_Controller {
 			'/index/step'   => 'index_step',
 			'/documents'    => 'upload_document',
 			'/sources/delete' => 'delete_source',
+			'/sources/retry'  => 'retry_failed',
 			'/clear'        => 'clear',
 			'/test'         => 'test_connection',
 		);
@@ -476,6 +477,22 @@ class WP_AI_Advisor_REST_Controller {
 			array(
 				'ok'    => true,
 				'stats' => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * Puts failed sources back in the queue so a resume picks them up.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public function retry_failed() {
+		$requeued = WP_AI_Advisor_Store::requeue_errors();
+
+		return rest_ensure_response(
+			array(
+				'requeued' => $requeued,
+				'stats'    => WP_AI_Advisor_Store::stats(),
 			)
 		);
 	}

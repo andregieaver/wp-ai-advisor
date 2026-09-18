@@ -37,3 +37,12 @@
 .wp-ai-advisor-admin .button-link-delete {
 	color: #b32d2e;
 }
+
+.wp-ai-advisor-admin .aiadv-admin__filters {
+	margin: 0 0 0.5rem;
+	float: none;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__error {
+	color: #b32d2e;
+}

@@ -3,7 +3,7 @@
  * Plugin Name:       WP AI Advisor
  * Plugin URI:        https://github.com/andregieaver/wp-ai-advisor
  * Description:       An AI advisor powered by OpenAI that answers visitor questions from your own site content and uploaded documents.
- * Version:           0.4.0
+ * Version:           0.4.1
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Andre Gieaver
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WP_AI_ADVISOR_VERSION', '0.4.0' );
+define( 'WP_AI_ADVISOR_VERSION', '0.4.1' );
 define( 'WP_AI_ADVISOR_FILE', __FILE__ );
 define( 'WP_AI_ADVISOR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WP_AI_ADVISOR_URL', plugin_dir_url( __FILE__ ) );

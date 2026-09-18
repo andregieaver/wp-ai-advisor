@@ -120,8 +120,14 @@ Neither mode updates itself. Re-run a build after the site changes.
 
 ## Knowledge base tab
 
-- **Build knowledge base** — runs whichever phases the mode calls for, then embeds. One source per request, driven from the browser, so a large site cannot hit PHP's time limit. Progress is live and the run can be stopped.
+- **Build knowledge base** — clears and rebuilds: runs whichever phases the mode calls for, then embeds. One source per request, driven from the browser, so a large site cannot hit PHP's time limit. Progress is live and the run can be stopped.
+- **Resume** — picks up wherever the last run stopped, clearing nothing. Use this after closing the tab mid-build, or after a run reports a problem. It fetches whatever is still waiting to be fetched, then embeds whatever is waiting to be embedded.
+- **Retry failed** — appears only when something failed. Puts failed sources back in the queue and resumes: sources that already hold text go straight back to embedding, ones that never got text go back to the crawl queue.
 - **Crawl only** / **Import local content only** — run a single phase, shown when the mode includes it. Each clears and rebuilds just its own sources; uploaded documents are never touched.
+
+The counters distinguish **To fetch** (queued, not yet retrieved) from **To index** (retrieved, not yet embedded), so a stalled run tells you which half stopped. Under the sources table, the filter links narrow it by status — **Failed** shows exactly what went wrong, with the reason on each row.
+
+A run survives transient failures: each step is retried up to three times with a backoff, and a phase that still gives up no longer cancels the phases after it. Nothing is lost when a run stops — Resume continues from the queue.
 - **Additional documents** — upload `.txt`, `.md`, `.csv`, `.json`, `.html`, `.docx`, `.pdf`. Useful for price lists or policies the website does not spell out.
 - **Sources table** — every page, imported post and document with its status, plus per-row delete.
 

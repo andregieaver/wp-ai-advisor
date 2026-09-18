@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -73,11 +73,22 @@ Yes. Each indexed page records its language, and a question gets answered from p
 that same language where possible. On Polylang and WPML sites every translation is
 indexed separately.
 
+= A build stopped before it finished. Do I have to start over? =
+
+No. Press Resume on the Knowledge base tab and it carries on from the queue. Use Build
+knowledge base only when you want to clear everything and rebuild from scratch.
+
 = Can it read scanned PDFs? =
 
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.4.1 =
+* Added Resume, which continues a build from wherever it stopped instead of starting over.
+* Added Retry failed, and a status filter so failed sources and their reasons are easy to find.
+* Counters now separate sources waiting to be fetched from those waiting to be indexed.
+* Steps are retried before giving up, and one failing phase no longer cancels the rest of the run.
 
 = 0.4.0 =
 * Added multilingual support: translatable throughout, with a Norwegian Bokmål translation.

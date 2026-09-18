@@ -95,6 +95,8 @@ class WP_AI_Advisor_Admin {
 				'strings' => array(
 					'testing'    => __( 'Testing…', 'wp-ai-advisor' ),
 					'preparing'  => __( 'Preparing…', 'wp-ai-advisor' ),
+					'retrying'   => __( 'Retrying after: %s', 'wp-ai-advisor' ),
+					'resumeHint' => __( 'Nothing was lost — press Resume to carry on from here.', 'wp-ai-advisor' ),
 					'crawling'   => __( 'Crawling %s', 'wp-ai-advisor' ),
 					'importing'  => __( 'Importing %s', 'wp-ai-advisor' ),
 					'indexing'   => __( 'Indexing %s', 'wp-ai-advisor' ),
@@ -250,15 +252,21 @@ class WP_AI_Advisor_Admin {
 	 * @return void
 	 */
 	private function render_knowledge_tab() {
-		$stats   = WP_AI_Advisor_Store::stats();
-		$sources = WP_AI_Advisor_Store::list_sources();
+		$stats = WP_AI_Advisor_Store::stats();
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only table filter.
+		$filter = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		$filter = in_array( $filter, array( 'pending', 'fetched', 'indexed', 'error' ), true ) ? $filter : '';
+
+		$sources = WP_AI_Advisor_Store::list_sources( '', $filter );
 		?>
 		<p class="description"><?php echo esc_html( $this->source_summary() ); ?></p>
 
 		<div class="aiadv-admin__stats" id="aiadv-stats">
 			<span><?php esc_html_e( 'Sources', 'wp-ai-advisor' ); ?>: <strong data-stat="total"><?php echo (int) $stats['total']; ?></strong></span>
 			<span><?php esc_html_e( 'Indexed', 'wp-ai-advisor' ); ?>: <strong data-stat="indexed"><?php echo (int) $stats['indexed']; ?></strong></span>
-			<span><?php esc_html_e( 'Waiting', 'wp-ai-advisor' ); ?>: <strong data-stat="pending"><?php echo (int) $stats['pending'] + (int) $stats['fetched']; ?></strong></span>
+			<span><?php esc_html_e( 'To fetch', 'wp-ai-advisor' ); ?>: <strong data-stat="pending"><?php echo (int) $stats['pending']; ?></strong></span>
+			<span><?php esc_html_e( 'To index', 'wp-ai-advisor' ); ?>: <strong data-stat="fetched"><?php echo (int) $stats['fetched']; ?></strong></span>
 			<span><?php esc_html_e( 'Failed', 'wp-ai-advisor' ); ?>: <strong data-stat="error"><?php echo (int) $stats['error']; ?></strong></span>
 			<span><?php esc_html_e( 'Passages', 'wp-ai-advisor' ); ?>: <strong data-stat="chunks"><?php echo (int) $stats['chunks']; ?></strong></span>
 			<?php $languages = WP_AI_Advisor_Language::indexed(); ?>
@@ -276,7 +284,10 @@ class WP_AI_Advisor_Admin {
 			<?php if ( WP_AI_Advisor_Settings::uses( 'local' ) ) : ?>
 				<button type="button" class="button" id="aiadv-local"><?php esc_html_e( 'Import local content only', 'wp-ai-advisor' ); ?></button>
 			<?php endif; ?>
-			<button type="button" class="button" id="aiadv-index"><?php esc_html_e( 'Index waiting sources', 'wp-ai-advisor' ); ?></button>
+			<button type="button" class="button" id="aiadv-resume"><?php esc_html_e( 'Resume', 'wp-ai-advisor' ); ?></button>
+			<?php if ( $stats['error'] > 0 ) : ?>
+				<button type="button" class="button" id="aiadv-retry"><?php esc_html_e( 'Retry failed', 'wp-ai-advisor' ); ?></button>
+			<?php endif; ?>
 			<button type="button" class="button" id="aiadv-stop" disabled><?php esc_html_e( 'Stop', 'wp-ai-advisor' ); ?></button>
 			<button type="button" class="button button-link-delete" id="aiadv-clear"><?php esc_html_e( 'Clear everything', 'wp-ai-advisor' ); ?></button>
 		</p>
@@ -308,6 +319,32 @@ class WP_AI_Advisor_Admin {
 		</p>
 
 		<h2><?php esc_html_e( 'Sources', 'wp-ai-advisor' ); ?></h2>
+
+		<ul class="subsubsub aiadv-admin__filters">
+			<?php
+			$filters = array(
+				''        => array( __( 'All', 'wp-ai-advisor' ), $stats['total'] ),
+				'error'   => array( __( 'Failed', 'wp-ai-advisor' ), $stats['error'] ),
+				'pending' => array( __( 'To fetch', 'wp-ai-advisor' ), $stats['pending'] ),
+				'fetched' => array( __( 'To index', 'wp-ai-advisor' ), $stats['fetched'] ),
+				'indexed' => array( __( 'Indexed', 'wp-ai-advisor' ), $stats['indexed'] ),
+			);
+			$last    = array_key_last( $filters );
+			?>
+			<?php foreach ( $filters as $value => $info ) : ?>
+				<li>
+					<a
+						href="<?php echo esc_url( $this->tab_url( 'knowledge', $value ) ); ?>"
+						class="<?php echo $filter === $value ? 'current' : ''; ?>"
+					>
+						<?php echo esc_html( $info[0] ); ?>
+						<span class="count">(<?php echo (int) $info[1]; ?>)</span>
+					</a>
+					<?php echo $value === $last ? '' : ' |'; ?>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+
 		<table class="widefat striped aiadv-admin__table">
 			<thead>
 				<tr>
@@ -322,7 +359,13 @@ class WP_AI_Advisor_Admin {
 			<tbody>
 				<?php if ( empty( $sources ) ) : ?>
 					<tr>
-						<td colspan="6"><?php esc_html_e( 'Nothing indexed yet.', 'wp-ai-advisor' ); ?></td>
+						<td colspan="6">
+							<?php
+							echo $filter
+								? esc_html__( 'No sources with this status.', 'wp-ai-advisor' )
+								: esc_html__( 'Nothing indexed yet.', 'wp-ai-advisor' );
+							?>
+						</td>
 					</tr>
 				<?php else : ?>
 					<?php foreach ( $sources as $source ) : ?>
@@ -341,7 +384,7 @@ class WP_AI_Advisor_Admin {
 							<td>
 								<?php echo esc_html( $source['status'] ); ?>
 								<?php if ( $source['message'] ) : ?>
-									<span class="description">— <?php echo esc_html( $source['message'] ); ?></span>
+									<br /><span class="aiadv-admin__error"><?php echo esc_html( $source['message'] ); ?></span>
 								<?php endif; ?>
 							</td>
 							<td><?php echo esc_html( $source['updated_at'] ); ?></td>
@@ -361,6 +404,27 @@ class WP_AI_Advisor_Admin {
 	/* ---------------------------------------------------------------------
 	 * Fields
 	 * ------------------------------------------------------------------ */
+
+	/**
+	 * URL for a tab, optionally filtered by source status.
+	 *
+	 * @param string $tab    Tab slug.
+	 * @param string $status Status filter, or '' for all.
+	 * @return string
+	 */
+	private function tab_url( $tab = 'settings', $status = '' ) {
+		$args = array( 'page' => self::PAGE_SLUG );
+
+		if ( 'settings' !== $tab ) {
+			$args['tab'] = $tab;
+		}
+
+		if ( $status ) {
+			$args['status'] = $status;
+		}
+
+		return add_query_arg( $args, admin_url( 'options-general.php' ) );
+	}
 
 	/**
 	 * One line describing what a build will do under the current mode.

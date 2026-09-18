@@ -407,22 +407,82 @@ class WP_AI_Advisor_Store {
 	/**
 	 * Lists sources for the admin table.
 	 *
-	 * @param string $type Optional type filter.
+	 * @param string $type   Optional type filter.
+	 * @param string $status Optional status filter.
+	 * @param int    $limit  Maximum rows, 0 for all.
 	 * @return array[]
 	 */
-	public static function list_sources( $type = '' ) {
+	public static function list_sources( $type = '', $status = '', $limit = 0 ) {
+		global $wpdb;
+
+		$table  = self::sources_table();
+		$where  = array();
+		$params = array();
+
+		if ( $type ) {
+			$where[]  = 'type = %s';
+			$params[] = $type;
+		}
+
+		if ( $status ) {
+			$where[]  = 'status = %s';
+			$params[] = $status;
+		}
+
+		$sql = "SELECT id, type, url, title, status, message, language, updated_at FROM {$table}";
+
+		if ( $where ) {
+			$sql .= ' WHERE ' . implode( ' AND ', $where );
+		}
+
+		$sql .= ' ORDER BY id ASC';
+
+		if ( $limit > 0 ) {
+			$sql     .= ' LIMIT %d';
+			$params[] = (int) $limit;
+		}
+
+		if ( $params ) {
+			$sql = $wpdb->prepare( $sql, $params ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		}
+
+		return (array) $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * Puts failed sources back in the queue.
+	 *
+	 * A source that already holds text only needs embedding again; one that
+	 * failed before it had any goes back to the start of the crawl queue.
+	 *
+	 * @return int Number of sources requeued.
+	 */
+	public static function requeue_errors() {
 		global $wpdb;
 
 		$table = self::sources_table();
+		$now   = current_time( 'mysql' );
 
-		if ( $type ) {
-			return (array) $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-				$wpdb->prepare( "SELECT id, type, url, title, status, message, language, updated_at FROM {$table} WHERE type = %s ORDER BY id ASC", $type ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				ARRAY_A
-			);
-		}
+		$with_content = (int) $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"UPDATE {$table} SET status = %s, message = '', updated_at = %s WHERE status = %s AND content <> ''", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				self::STATUS_FETCHED,
+				$now,
+				self::STATUS_ERROR
+			)
+		);
 
-		return (array) $wpdb->get_results( "SELECT id, type, url, title, status, message, language, updated_at FROM {$table} ORDER BY id ASC", ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$without_content = (int) $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"UPDATE {$table} SET status = %s, message = '', updated_at = %s WHERE status = %s AND content = '' AND type <> %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				self::STATUS_PENDING,
+				$now,
+				self::STATUS_ERROR,
+				self::TYPE_DOCUMENT
+			)
+		);
+
+		return $with_content + $without_content;
 	}
 
 	/**
