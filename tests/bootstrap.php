@@ -111,7 +111,15 @@ function get_option( $key, $default = false ) {
 function update_option( $key, $value ) { $GLOBALS['wp_ai_advisor_test_options'][ $key ] = $value; return true; }
 function current_time( $type ) { return gmdate( 'Y-m-d H:i:s' ); }
 function current_user_can( $capability ) { return false; }
-function get_post_types( $args = array(), $output = 'names' ) { return array( 'post', 'page' ); }
+function get_post_types( $args = array(), $output = 'names' ) {
+	return isset( $GLOBALS['wp_ai_advisor_test_post_types'] )
+		? $GLOBALS['wp_ai_advisor_test_post_types']
+		: array( 'post', 'page' );
+}
+function get_post_type( $post ) {
+	$post = is_object( $post ) ? $post : get_post( $post );
+	return $post ? $post->post_type : false;
+}
 
 // A tiny stand-in post store, so page-context logic can run without WordPress.
 $GLOBALS['wp_ai_advisor_test_posts'] = array();

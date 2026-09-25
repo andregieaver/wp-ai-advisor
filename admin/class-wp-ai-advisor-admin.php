@@ -178,6 +178,7 @@ class WP_AI_Advisor_Admin {
 			array( 'top_k', __( 'Context passages', 'wp-ai-advisor' ), 'render_top_k', 'grounding' ),
 			array( 'min_score', __( 'Relevance threshold', 'wp-ai-advisor' ), 'render_min_score', 'grounding' ),
 
+			array( 'context_post_types', __( 'Applies to', 'wp-ai-advisor' ), 'render_context_post_types', 'page' ),
 			array( 'price_field', __( 'Price range field', 'wp-ai-advisor' ), 'render_price_field', 'page' ),
 
 			array( 'enable_calculator', __( 'Work out estimates', 'wp-ai-advisor' ), 'render_enable_calculator', 'estimates' ),
@@ -989,6 +990,36 @@ class WP_AI_Advisor_Admin {
 
 			echo '</optgroup>';
 		}
+	}
+
+	/**
+	 * Post types the widget treats as its subject.
+	 *
+	 * @return void
+	 */
+	public function render_context_post_types() {
+		$selected   = WP_AI_Advisor_Settings::context_post_types();
+		$post_types = get_post_types( array( 'public' => true ), 'objects' );
+
+		echo '<fieldset>';
+
+		foreach ( $post_types as $post_type ) {
+			if ( 'attachment' === $post_type->name ) {
+				continue;
+			}
+
+			printf(
+				'<label><input type="checkbox" name="%1$s[]" value="%2$s"%3$s /> %4$s</label><br />',
+				esc_attr( $this->name( 'context_post_types' ) ),
+				esc_attr( $post_type->name ),
+				checked( in_array( $post_type->name, $selected, true ), true, false ),
+				esc_html( $post_type->labels->name )
+			);
+		}
+
+		echo '</fieldset>';
+
+		$this->description( __( 'On these post types the widget adopts the page it sits on: it answers about that item, pins its content into every answer, and shows the product/post questions. Anywhere else it stays general. A shortcode with an explicit ID always adopts that page.', 'wp-ai-advisor' ) );
 	}
 
 	/**

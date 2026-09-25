@@ -303,6 +303,44 @@ check(
 );
 $GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'hvor_mye_koster_det' => '12 900 – 18 400 kr' );
 
+// --- Which post types the widget adopts ------------------------------------
+// An ordinary Page is singular too, so "is this a singular view" is not the
+// same question as "is this the kind of thing the advisor is about".
+$GLOBALS['wp_ai_advisor_test_post_types'] = array( 'post', 'page', 'product', 'attachment' );
+$GLOBALS['wp_ai_advisor_test_options']    = array();
+
+check(
+	'by default only non-content types are subjects',
+	WP_AI_Advisor_Settings::context_post_types(),
+	array( 'product' )
+);
+
+wp_ai_advisor_test_post( 50, array( 'post_type' => 'product' ) );
+wp_ai_advisor_test_post( 51, array( 'post_type' => 'page' ) );
+wp_ai_advisor_test_post( 52, array( 'post_type' => 'post' ) );
+
+check( 'a product is a subject', WP_AI_Advisor_Settings::is_subject_type( 50 ), true );
+check( 'an ordinary page is not', WP_AI_Advisor_Settings::is_subject_type( 51 ), false );
+check( 'a blog post is not', WP_AI_Advisor_Settings::is_subject_type( 52 ), false );
+
+// An explicit choice is honoured, including an empty one.
+$GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings'] = array( 'context_post_types' => array( 'page' ) );
+check( 'a configured list is used', WP_AI_Advisor_Settings::context_post_types(), array( 'page' ) );
+check( 'pages become subjects when chosen', WP_AI_Advisor_Settings::is_subject_type( 51 ), true );
+check( 'products stop being subjects when not chosen', WP_AI_Advisor_Settings::is_subject_type( 50 ), false );
+
+$GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings'] = array( 'context_post_types' => array() );
+check( 'an empty list means nothing is adopted', WP_AI_Advisor_Settings::is_subject_type( 50 ), false );
+
+$saved = WP_AI_Advisor_Settings::sanitize( array( '_form' => 'settings', 'context_post_types' => array( 'product', 'nonsense' ) ) );
+check( 'unknown post types are dropped on save', $saved['context_post_types'], array( 'product' ) );
+
+$cleared = WP_AI_Advisor_Settings::sanitize( array( '_form' => 'settings' ) );
+check( 'unticking everything saves an empty list, not the default', $cleared['context_post_types'], array() );
+
+$GLOBALS['wp_ai_advisor_test_options']    = array();
+$GLOBALS['wp_ai_advisor_test_post_types'] = array( 'post', 'page' );
+
 // --- Question sets ---------------------------------------------------------
 $GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings'] = array(
 	'suggestion_sets' => array(

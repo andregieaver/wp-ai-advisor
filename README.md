@@ -64,7 +64,8 @@ Drop the widget on a product template and it answers about the product the visit
 
 "Hva er spesielt med denne kaffemaskinen?" has nothing for semantic search to match — the pronoun carries no meaning. So context is supplied rather than inferred:
 
-- The widget reports the post it sits on. The endpoint re-validates that ID server-side and accepts only published posts of public types, so a widget cannot be pointed at a draft.
+- The widget reports the post it sits on — but only where the page is one of the post types listed under **Applies to** (by default, every public type except ordinary posts and pages). An ordinary Page is a singular view too, so without that restriction a plain content page would silently swap in the product questions and pin its own copy into every answer.
+- The endpoint re-validates that ID server-side and accepts only published posts of public types, so a widget cannot be pointed at a draft.
 - That post's own indexed passages are **pinned** to the front of the context, whatever the question scored, and duplicate semantic hits are dropped.
 - Its live field values are stated in the prompt as current and authoritative, so an edit applies immediately without re-indexing.
 - The model is told that "this", "denne" and "dette" mean that page, and to answer about it by default.
@@ -73,7 +74,7 @@ A page-aware widget also gets its own suggested questions (see below), and a que
 
 | Attribute | Default | Description |
 | --- | --- | --- |
-| `context` | `auto` | `auto` adopts the current post on a singular view. `none` disables it. A post ID pins a specific page. |
+| `context` | `auto` | `auto` adopts the current post, but only on the post types set under **Applies to**. `none` disables it. An explicit post ID always adopts that page, whatever its type. |
 | `layout` | `full` | `compact` is smaller, ranged left, without the hero heading — for a sidebar or product page. |
 | `suggestions` | from settings | Inline overrides, separated by `\|`. |
 
@@ -264,11 +265,11 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 ## Tests
 
 ```bash
-php tests/logic-test.php     # 131 checks
+php tests/logic-test.php     # 141 checks
 node tests/markdown-test.js  # 19 checks
 ```
 
-The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, which post types the widget adopts, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 

@@ -133,12 +133,18 @@ class WP_AI_Advisor_Shortcode {
 		// question about "this one" has something to resolve to.
 		$post_id = 0;
 
-		if ( 'none' !== $atts['context'] ) {
-			$post_id = 'auto' === $atts['context']
-				? ( is_singular() ? get_queried_object_id() : 0 )
-				: absint( $atts['context'] );
+		if ( 'auto' === $atts['context'] ) {
+			// Only post types the site treats as subjects: an ordinary Page is
+			// singular too, and adopting it would swap the questions and pin the
+			// page's own copy into every answer.
+			$queried = is_singular() ? get_queried_object_id() : 0;
 
-			$post_id = WP_AI_Advisor_Page_Context::validate( $post_id );
+			if ( $queried && WP_AI_Advisor_Settings::is_subject_type( $queried ) ) {
+				$post_id = WP_AI_Advisor_Page_Context::validate( $queried );
+			}
+		} elseif ( 'none' !== $atts['context'] ) {
+			// An explicit ID is the author asking for it, whatever the type.
+			$post_id = WP_AI_Advisor_Page_Context::validate( $atts['context'] );
 		}
 
 		$compact = 'compact' === $atts['layout'];

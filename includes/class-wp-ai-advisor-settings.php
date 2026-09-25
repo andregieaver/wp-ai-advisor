@@ -50,6 +50,8 @@ class WP_AI_Advisor_Settings {
 
 			// Page context.
 			'price_field'       => 'hvor_mye_koster_det',
+			// null means "never configured", which is not the same as "none".
+			'context_post_types' => null,
 			'context_suggestions' => array(),
 			'suggestion_sets'   => array(),
 
@@ -328,6 +330,41 @@ class WP_AI_Advisor_Settings {
 	}
 
 	/**
+	 * Post types the advisor treats as its subject.
+	 *
+	 * A widget only adopts the page it sits on when that page is one of these.
+	 * Without the restriction every singular view qualifies — and an ordinary
+	 * Page is singular, so a plain content page would silently get the
+	 * product question set and have its own copy pinned into every answer.
+	 *
+	 * @return string[]
+	 */
+	public static function context_post_types() {
+		$stored = self::get( 'context_post_types', null );
+
+		if ( is_array( $stored ) ) {
+			return array_values( array_intersect( $stored, get_post_types( array( 'public' => true ) ) ) );
+		}
+
+		// Never configured: everything public that is not ordinary content.
+		$types = get_post_types( array( 'public' => true ) );
+
+		return array_values( array_diff( $types, array( 'post', 'page', 'attachment' ) ) );
+	}
+
+	/**
+	 * Whether a post is something the advisor should treat as its subject.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_subject_type( $post_id ) {
+		$type = get_post_type( $post_id );
+
+		return $type && in_array( $type, self::context_post_types(), true );
+	}
+
+	/**
 	 * Category-specific question sets, normalised.
 	 *
 	 * Each set is {label, terms, questions}. Order is meaningful: the first set
@@ -543,6 +580,12 @@ class WP_AI_Advisor_Settings {
 		// Checkboxes post nothing when unchecked, so they are only read when the
 		// form that owns them was actually submitted.
 		if ( isset( $input['_form'] ) ) {
+			$types = isset( $input['context_post_types'] ) ? (array) $input['context_post_types'] : array();
+
+			$output['context_post_types'] = array_values(
+				array_intersect( array_map( 'sanitize_key', $types ), get_post_types( array( 'public' => true ) ) )
+			);
+
 			$output['strict_mode']    = ! empty( $input['strict_mode'] );
 			$output['admin_only']     = ! empty( $input['admin_only'] );
 			$output['render_filters']    = ! empty( $input['render_filters'] );

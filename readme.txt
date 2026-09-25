@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.7.0
+Stable tag: 0.7.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -112,6 +112,10 @@ product, pins its content into every answer, and reads its price range field liv
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.7.1 =
+* Fixed the general questions being replaced by the product questions on ordinary pages.
+* Page context now applies only to the post types you choose, products by default.
 
 = 0.7.0 =
 * Suggested questions now live in their own settings section.
