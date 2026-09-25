@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.8.0
+Stable tag: 0.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -108,6 +108,12 @@ sub-category inherits the parent's set.
 Yes. Use [ai_advisor layout="compact"] in a product template. The widget adopts that
 product, pins its content into every answer, and reads its price range field live.
 
+= The advisor says it is temporarily unavailable. What is wrong? =
+
+Open Settings, AI Advisor. The last failure is shown at the top of the OpenAI connection
+section with the reason OpenAI gave. The usual cause is a chat model that cannot serve
+this plugin; press Test connection after changing it.
+
 = I just need to add one small fact. Do I have to make a document? =
 
 No. Use Your own notes on the Knowledge base tab: give it a title, type the fact, save.
@@ -118,6 +124,12 @@ It is indexed like any other source and survives a rebuild.
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.8.1 =
+* Models that do not support structured outputs now fall back to a plain answer instead of failing.
+* Failures are recorded and shown on the settings screen, with the reason OpenAI gave.
+* Administrators see the underlying error in the widget; visitors still see a plain message.
+* Test connection now sends a real question through the chosen model.
 
 = 0.8.0 =
 * The chat and embedding models are now dropdowns, built from the models your API key can reach.

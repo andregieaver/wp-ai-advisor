@@ -170,6 +170,10 @@ Both models are dropdowns built from **your own key**: the plugin asks the API w
 
 Reasoning models (the o-series) take different request parameters and will not work without a code change — use the `wp_ai_advisor_request_body` filter if you need one.
 
+Not every chat model accepts structured outputs or tools. When one refuses, the request is retried without them and the answer still arrives — as plain text, without the follow-up chips, verified links or the calculator. Anything else that fails surfaces instead of being retried.
+
+**When a request fails**, the reason is recorded and shown on the settings screen: the API's own message, the model, the endpoint and the time. Administrators also see it in the widget itself; visitors never do. **Test connection** sends a real question through the configured model rather than just checking the key, so a model that cannot serve this plugin is caught on the settings page instead of by a customer.
+
 **Knowledge source** — mode, local post types, crawl base URL, page limit, URL fragments to skip, plus:
 
 - *Avoid duplicates* (on by default) — in both-modes, skips local posts whose URL the crawl already covered. Without it the same page is indexed twice, costing tokens and returning near-duplicate passages.
@@ -272,11 +276,11 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 ## Tests
 
 ```bash
-php tests/logic-test.php     # 161 checks
+php tests/logic-test.php     # 173 checks
 node tests/markdown-test.js  # 19 checks
 ```
 
-The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, which post types the widget adopts, chat-model filtering, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, which post types the widget adopts, chat-model filtering, which API failures degrade rather than surface, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 

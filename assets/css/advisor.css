@@ -559,3 +559,11 @@
 	padding: 0.875rem;
 	text-align: start;
 }
+
+/* Only rendered for administrators, carrying the underlying API error. */
+.aiadv__notice-detail {
+	display: block;
+	margin-top: 0.35rem;
+	font-size: 0.8125rem;
+	opacity: 0.85;
+}

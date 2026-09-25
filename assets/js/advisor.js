@@ -298,6 +298,13 @@
 		this.notice.hidden = true;
 	};
 
+	Widget.prototype.showDetail = function ( message ) {
+		var detail = el( 'span', 'aiadv__notice-detail', message );
+
+		this.notice.appendChild( document.createElement( 'br' ) );
+		this.notice.appendChild( detail );
+	};
+
 	Widget.prototype.addMessage = function ( role, text, markdown ) {
 		var wrapper = el( 'div', 'aiadv__message aiadv__message--' + role );
 
@@ -410,7 +417,16 @@
 				pending.remove();
 
 				if ( ! result.ok ) {
-					self.showError( ( result.data && result.data.message ) || strings.error );
+					var data = result.data || {};
+					var notice = data.data && data.data.admin_notice;
+
+					self.showError( data.message || strings.error );
+
+					// Administrators also get the underlying reason, which is
+					// the only place it is visible while testing.
+					if ( notice ) {
+						self.showDetail( notice );
+					}
 
 					return;
 				}

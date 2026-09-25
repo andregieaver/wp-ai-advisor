@@ -406,16 +406,25 @@ class WP_AI_Advisor_REST_Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function test_connection() {
-		$result = ( new WP_AI_Advisor_OpenAI_Client() )->test_connection();
+		$client = new WP_AI_Advisor_OpenAI_Client();
+		$result = $client->test_connection();
 
 		if ( is_wp_error( $result ) ) {
+			$this->expose_detail( $result );
+
 			return $result;
 		}
+
+		WP_AI_Advisor_OpenAI_Client::forget_error();
 
 		return rest_ensure_response(
 			array(
 				'ok'      => true,
-				'message' => __( 'Connected to OpenAI.', 'wp-ai-advisor' ),
+				'message' => sprintf(
+					/* translators: %s: the chat model that answered. */
+					__( 'Connected, and %s answered a test question.', 'wp-ai-advisor' ),
+					(string) WP_AI_Advisor_Settings::get( 'model' )
+				),
 			)
 		);
 	}
@@ -863,13 +872,48 @@ class WP_AI_Advisor_REST_Controller {
 	 * @return void
 	 */
 	private function log_error( WP_Error $error ) {
-		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
+		$data   = $error->get_error_data();
+		$detail = is_array( $data ) && ! empty( $data['detail'] ) ? (string) $data['detail'] : '';
+
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( '[wp-ai-advisor] ' . $error->get_error_code() . ': ' . $error->get_error_message() . ' ' . $detail ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+
+		$this->expose_detail( $error );
+	}
+
+	/**
+	 * Shows the underlying reason to administrators, and hides it from everyone else.
+	 *
+	 * A visitor should not read an API error; whoever has to fix it needs to,
+	 * and telling them only "temporarily unavailable" makes that impossible.
+	 *
+	 * @param WP_Error $error Error being returned.
+	 * @return void
+	 */
+	private function expose_detail( WP_Error $error ) {
+		$data = $error->get_error_data();
+
+		if ( ! is_array( $data ) ) {
 			return;
 		}
 
-		$data   = $error->get_error_data();
-		$detail = is_array( $data ) && ! empty( $data['detail'] ) ? ' ' . $data['detail'] : '';
+		if ( ! current_user_can( 'manage_options' ) ) {
+			unset( $data['detail'] );
 
-		error_log( '[wp-ai-advisor] ' . $error->get_error_code() . ': ' . $error->get_error_message() . $detail ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			$error->add_data( $data );
+
+			return;
+		}
+
+		if ( ! empty( $data['detail'] ) ) {
+			$data['admin_notice'] = sprintf(
+				/* translators: %s: the error message returned by OpenAI. */
+				__( 'Only administrators see this: %s', 'wp-ai-advisor' ),
+				$data['detail']
+			);
+
+			$error->add_data( $data );
+		}
 	}
 }

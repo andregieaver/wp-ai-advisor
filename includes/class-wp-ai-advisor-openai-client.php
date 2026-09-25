@@ -18,6 +18,7 @@ class WP_AI_Advisor_OpenAI_Client {
 	const MAX_TOOL_ROUNDS = 4;
 	const MODELS_CACHE    = 'wp_ai_advisor_models';
 	const MODELS_TTL      = 12 * HOUR_IN_SECONDS;
+	const LAST_ERROR      = 'wp_ai_advisor_last_error';
 
 	/**
 	 * API key used for requests.
@@ -73,6 +74,8 @@ class WP_AI_Advisor_OpenAI_Client {
 			$system .= "\n\n" . $this->page_rules();
 		}
 
+		$system .= "\n\n" . $this->format_rules();
+
 		if ( ! empty( $settings['enable_calculator'] ) ) {
 			$system .= "\n\n" . $this->estimate_rules();
 		}
@@ -90,27 +93,35 @@ class WP_AI_Advisor_OpenAI_Client {
 
 		$calculations = array();
 
+		// Not every chat model accepts structured outputs or tools. When one
+		// refuses, the request is retried without them rather than failing:
+		// a plain answer beats no answer.
+		$plain = false;
+
 		// The model may ask for arithmetic before it can answer, so the request
 		// is a short loop rather than a single call.
 		for ( $round = 0; $round <= self::MAX_TOOL_ROUNDS; $round++ ) {
 			$body = array(
-				'model'           => $settings['model'],
-				'messages'        => $messages,
-				'temperature'     => (float) $settings['temperature'],
-				'max_tokens'      => (int) $settings['max_tokens'],
-				'response_format' => array(
+				'model'       => $settings['model'],
+				'messages'    => $messages,
+				'temperature' => (float) $settings['temperature'],
+				'max_tokens'  => (int) $settings['max_tokens'],
+			);
+
+			if ( ! $plain ) {
+				$body['response_format'] = array(
 					'type'        => 'json_schema',
 					'json_schema' => array(
 						'name'   => 'advisor_answer',
 						'strict' => true,
 						'schema' => $this->answer_schema(),
 					),
-				),
-			);
+				);
+			}
 
 			// On the last round the tools are withheld, so the model has no
 			// choice but to produce the answer instead of asking for more sums.
-			if ( ! empty( $settings['enable_calculator'] ) && $round < self::MAX_TOOL_ROUNDS ) {
+			if ( ! $plain && ! empty( $settings['enable_calculator'] ) && $round < self::MAX_TOOL_ROUNDS ) {
 				$body['tools'] = array( $this->calculator_tool() );
 			}
 
@@ -126,6 +137,14 @@ class WP_AI_Advisor_OpenAI_Client {
 			$parsed = $this->request( '/chat/completions', $body );
 
 			if ( is_wp_error( $parsed ) ) {
+				if ( ! $plain && $this->is_unsupported_feature( $parsed ) ) {
+					// Retry this same round without the features it refused.
+					$plain = true;
+					$round--;
+
+					continue;
+				}
+
 				return $parsed;
 			}
 
@@ -450,7 +469,20 @@ class WP_AI_Advisor_OpenAI_Client {
 	 * @return true|WP_Error
 	 */
 	public function test_connection() {
-		$result = $this->request( '/models', null );
+		// Listing models only proves the key works. The question that matters is
+		// whether the chosen model answers the kind of request this plugin
+		// actually sends, which is where a model choice goes wrong.
+		$result = $this->answer(
+			__( 'Reply with the single word OK.', 'wp-ai-advisor' ),
+			array(
+				array(
+					'title'    => __( 'Connection test', 'wp-ai-advisor' ),
+					'url'      => home_url(),
+					'language' => WP_AI_Advisor_Language::site(),
+					'content'  => __( 'This is a connection test. Reply with the single word OK.', 'wp-ai-advisor' ),
+				),
+			)
+		);
 
 		return is_wp_error( $result ) ? $result : true;
 	}
@@ -504,6 +536,8 @@ class WP_AI_Advisor_OpenAI_Client {
 
 		if ( $status < 200 || $status >= 300 ) {
 			$detail = isset( $parsed['error']['message'] ) ? $parsed['error']['message'] : '';
+
+			$this->remember_error( $path, $status, $detail );
 
 			return new WP_Error(
 				'wp_ai_advisor_api_error',
@@ -577,6 +611,20 @@ class WP_AI_Advisor_OpenAI_Client {
 		}
 
 		return $prefix . "SITE CONTENT:\n" . implode( "\n\n---\n\n", $blocks ) . "\n\nQUESTION:\n" . $question;
+	}
+
+	/**
+	 * How the answer text itself should read.
+	 *
+	 * @return string
+	 */
+	private function format_rules() {
+		$rules = array(
+			__( 'Write for someone standing in front of a screen: short paragraphs, no preamble, no sign-off.', 'wp-ai-advisor' ),
+			__( 'Markdown is rendered, so use a bullet list when listing things, and bold sparingly for names or figures. Never use headings or tables.', 'wp-ai-advisor' ),
+		);
+
+		return "STYLE:\n- " . implode( "\n- ", $rules );
 	}
 
 	/**
@@ -719,6 +767,10 @@ class WP_AI_Advisor_OpenAI_Client {
 	 */
 	private function message_for_status( $status ) {
 		switch ( $status ) {
+			case 400:
+			case 404:
+			case 422:
+				return __( 'OpenAI rejected the request. This usually means the chosen model does not accept how the assistant is configured.', 'wp-ai-advisor' );
 			case 401:
 			case 403:
 				return __( 'OpenAI rejected the configured API key.', 'wp-ai-advisor' );
@@ -727,5 +779,72 @@ class WP_AI_Advisor_OpenAI_Client {
 			default:
 				return __( 'The assistant is temporarily unavailable. Please try again.', 'wp-ai-advisor' );
 		}
+	}
+
+	/**
+	 * Remembers the last failure so the settings screen can show it.
+	 *
+	 * Without this the reason lives only in a browser console at the moment it
+	 * happens, which is no use to whoever has to fix it afterwards.
+	 *
+	 * @param string $path   Endpoint that failed.
+	 * @param int    $status HTTP status.
+	 * @param string $detail Message from the API.
+	 * @return void
+	 */
+	private function remember_error( $path, $status, $detail ) {
+		set_transient(
+			self::LAST_ERROR,
+			array(
+				'path'   => $path,
+				'status' => (int) $status,
+				'detail' => mb_substr( (string) $detail, 0, 500 ),
+				'model'  => (string) WP_AI_Advisor_Settings::get( 'model' ),
+				'when'   => current_time( 'mysql' ),
+			),
+			WEEK_IN_SECONDS
+		);
+	}
+
+	/**
+	 * The last recorded API failure, if any.
+	 *
+	 * @return array|null
+	 */
+	public static function last_error() {
+		$error = get_transient( self::LAST_ERROR );
+
+		return is_array( $error ) ? $error : null;
+	}
+
+	/**
+	 * Clears the recorded failure.
+	 *
+	 * @return void
+	 */
+	public static function forget_error() {
+		delete_transient( self::LAST_ERROR );
+	}
+
+	/**
+	 * Whether a failure is the API refusing a feature the request asked for.
+	 *
+	 * Older chat models accept a conversation but not structured outputs or
+	 * tools, and answer a request carrying either with a 400.
+	 *
+	 * @param WP_Error $error Error from a request.
+	 * @return bool
+	 */
+	private function is_unsupported_feature( WP_Error $error ) {
+		$data = $error->get_error_data();
+
+		if ( ! is_array( $data ) || empty( $data['detail'] ) ) {
+			return false;
+		}
+
+		return (bool) preg_match(
+			'/response_format|json_schema|schema|tool|function calling/i',
+			(string) $data['detail']
+		);
 	}
 }

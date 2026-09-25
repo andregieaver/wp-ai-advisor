@@ -14,6 +14,7 @@
 define( 'ABSPATH', sys_get_temp_dir() . '/' );
 define( 'WP_AI_ADVISOR_VERSION', 'test' );
 define( 'HOUR_IN_SECONDS', 3600 );
+define( 'WEEK_IN_SECONDS', 604800 );
 
 /**
  * Stand-in for WordPress's error object.

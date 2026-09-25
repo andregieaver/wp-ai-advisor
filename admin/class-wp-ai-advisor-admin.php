@@ -607,6 +607,27 @@ class WP_AI_Advisor_Admin {
 			'<p>%s</p>',
 			esc_html__( 'Create a key at platform.openai.com. For production sites, define WP_AI_ADVISOR_API_KEY in wp-config.php instead of storing the key in the database.', 'wp-ai-advisor' )
 		);
+
+		$error = WP_AI_Advisor_OpenAI_Client::last_error();
+
+		if ( ! $error ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-warning inline"><p><strong>%1$s</strong><br /><code>%2$s</code><br /><span class="description">%3$s</span></p></div>',
+			esc_html__( 'The last request to OpenAI failed:', 'wp-ai-advisor' ),
+			esc_html( $error['detail'] ? $error['detail'] : sprintf( 'HTTP %d', $error['status'] ) ),
+			esc_html(
+				sprintf(
+					/* translators: 1: model id, 2: endpoint path, 3: date and time. */
+					__( 'Model %1$s, endpoint %2$s, at %3$s. Press Test connection once you have changed something.', 'wp-ai-advisor' ),
+					$error['model'],
+					$error['path'],
+					$error['when']
+				)
+			)
+		);
 	}
 
 	/**

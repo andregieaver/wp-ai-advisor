@@ -252,6 +252,50 @@ foreach (
 	check( 'hides ' . $id, $reflection->invoke( null, $id ), false );
 }
 
+// --- Degrading when a model refuses a feature ------------------------------
+// Older chat models take a conversation but not structured outputs or tools.
+// Those failures are retried plainly; everything else has to surface.
+$unsupported = new ReflectionMethod( 'WP_AI_Advisor_OpenAI_Client', 'is_unsupported_feature' );
+$unsupported->setAccessible( true );
+$probe_client = new WP_AI_Advisor_OpenAI_Client( 'sk-test' );
+
+/**
+ * Builds an API error carrying a detail message.
+ *
+ * @param string $detail Message from the API.
+ * @return WP_Error
+ */
+function api_error( $detail ) {
+	return new WP_Error( 'wp_ai_advisor_api_error', 'x', array( 'status' => 502, 'detail' => $detail ) );
+}
+
+foreach (
+	array(
+		"Invalid parameter: 'response_format' of type 'json_schema' is not supported with this model.",
+		'response_format is not supported with this model',
+		"Invalid value: 'json_schema'. Supported values are: 'text' and 'json_object'.",
+		'This model does not support tools',
+		'function calling is not supported',
+	) as $detail
+) {
+	check( 'retries without extras: ' . substr( $detail, 0, 40 ), $unsupported->invoke( $probe_client, api_error( $detail ) ), true );
+}
+
+foreach (
+	array(
+		'Incorrect API key provided',
+		'You exceeded your current quota',
+		'The model `gpt-9` does not exist or you do not have access to it.',
+		'Rate limit reached for requests',
+		'context_length_exceeded: maximum context length is 8192 tokens',
+		'',
+	) as $detail
+) {
+	check( 'surfaces: ' . ( $detail ? substr( $detail, 0, 40 ) : '(no detail)' ), $unsupported->invoke( $probe_client, api_error( $detail ) ), false );
+}
+
+check( 'surfaces an error carrying no data', $unsupported->invoke( $probe_client, new WP_Error( 'x', 'y' ) ), false );
+
 // --- Model setting ---------------------------------------------------------
 $picked = WP_AI_Advisor_Settings::sanitize( array( 'model' => 'gpt-4o' ) );
 check( 'a listed model is stored', $picked['model'], 'gpt-4o' );
