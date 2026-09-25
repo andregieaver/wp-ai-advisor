@@ -33,7 +33,7 @@
 			stopped = false;
 		}
 
-		[ 'aiadv-build', 'aiadv-crawl', 'aiadv-local', 'aiadv-resume', 'aiadv-retry', 'aiadv-clear', 'aiadv-test', 'aiadv-upload', 'aiadv-bulk-apply', 'aiadv-dedupe' ].forEach( function ( id ) {
+		[ 'aiadv-build', 'aiadv-crawl', 'aiadv-local', 'aiadv-resume', 'aiadv-retry', 'aiadv-clear', 'aiadv-test', 'aiadv-upload', 'aiadv-bulk-apply', 'aiadv-dedupe', 'aiadv-note-save' ].forEach( function ( id ) {
 			var button = byId( id );
 
 			if ( button ) {
@@ -440,8 +440,153 @@
 		} );
 	}
 
+	/**
+	 * Model dropdowns: the free-text box only appears for "Something else…", and
+	 * only one of the pair is submitted, so the two cannot disagree.
+	 */
+	function setupModels() {
+		Array.prototype.forEach.call(
+			document.querySelectorAll( '.aiadv-admin__model' ),
+			function ( select ) {
+				var custom = byId( select.getAttribute( 'data-target' ) );
+
+				if ( ! custom ) {
+					return;
+				}
+
+				function sync() {
+					var isCustom = '__custom__' === select.value;
+
+					custom.hidden = ! isCustom;
+					custom.disabled = ! isCustom;
+
+					if ( isCustom ) {
+						custom.focus();
+					}
+				}
+
+				sync();
+				select.addEventListener( 'change', sync );
+			}
+		);
+
+		bind( 'aiadv-refresh-models', function () {
+			var note = byId( 'aiadv-models-note' );
+
+			if ( note ) {
+				note.textContent = strings.testing;
+			}
+
+			call( '/models', { refresh: true } )
+				.then( function ( data ) {
+					if ( note ) {
+						note.textContent = strings.modelsFound
+							.replace( '%d', ( data.chat || [] ).length )
+							.replace( '%s', strings.reloadForList );
+					}
+				} )
+				.catch( function ( error ) {
+					if ( note ) {
+						note.textContent = error.message || strings.failed;
+					}
+				} );
+		} );
+	}
+
+	/**
+	 * Hand-written notes: save, then embed just that note.
+	 */
+	function setupNotes() {
+		var idField = byId( 'aiadv-note-id' );
+		var title = byId( 'aiadv-note-title' );
+		var content = byId( 'aiadv-note-content' );
+		var language = byId( 'aiadv-note-language' );
+		var cancel = byId( 'aiadv-note-cancel' );
+
+		if ( ! idField || ! content ) {
+			return;
+		}
+
+		function reset() {
+			idField.value = '0';
+			title.value = '';
+			content.value = '';
+
+			if ( cancel ) {
+				cancel.hidden = true;
+			}
+		}
+
+		bind( 'aiadv-note-save', function () {
+			if ( ! content.value.trim() ) {
+				log( strings.noteEmpty );
+				content.focus();
+
+				return;
+			}
+
+			setRunning( true );
+			log( strings.preparing );
+
+			call( '/notes', {
+				id: idField.value,
+				title: title.value,
+				content: content.value,
+				language: language ? language.value : ''
+			} )
+				.then( function ( data ) {
+					renderStats( data.stats );
+
+					// A saved note is queued but not yet embedded.
+					return loop( '/index/step', strings.indexing );
+				} )
+				.then( function () {
+					log( strings.done );
+					window.location.reload();
+				} )
+				.catch( function ( error ) {
+					log( error.message || strings.failed );
+					setRunning( false );
+				} );
+		} );
+
+		if ( cancel ) {
+			cancel.addEventListener( 'click', reset );
+		}
+
+		Array.prototype.forEach.call(
+			document.querySelectorAll( '.aiadv-admin__edit-note' ),
+			function ( button ) {
+				button.addEventListener( 'click', function () {
+					call( '/notes/get', { id: button.getAttribute( 'data-id' ) } )
+						.then( function ( note ) {
+							idField.value = note.id;
+							title.value = note.title;
+							content.value = note.content;
+
+							if ( language && note.language ) {
+								language.value = note.language;
+							}
+
+							if ( cancel ) {
+								cancel.hidden = false;
+							}
+
+							content.focus();
+							content.scrollIntoView( { block: 'center' } );
+						} )
+						.catch( function ( error ) {
+							log( error.message || strings.failed );
+						} );
+				} );
+			}
+		);
+	}
+
 	document.addEventListener( 'DOMContentLoaded', function () {
 		setupSets();
+		setupModels();
+		setupNotes();
 
 		bind( 'aiadv-build', build );
 

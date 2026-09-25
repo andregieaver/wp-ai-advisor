@@ -91,3 +91,20 @@
 .wp-ai-advisor-admin .aiadv-admin__remove-set {
 	color: #b32d2e;
 }
+
+.wp-ai-advisor-admin .aiadv-admin__note-form {
+	max-width: 42rem;
+	margin-bottom: 1rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__note-form p:last-child {
+	margin-bottom: 0;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__model-custom[hidden] {
+	display: none;
+}

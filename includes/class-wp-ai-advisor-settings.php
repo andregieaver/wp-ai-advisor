@@ -277,6 +277,36 @@ class WP_AI_Advisor_Settings {
 	}
 
 	/**
+	 * Resolves a model field from its dropdown and its free-text companion.
+	 *
+	 * The dropdown offers what the key can list; the text field carries anything
+	 * it cannot, so a model released after the list was cached is still usable.
+	 *
+	 * @param array  $input    Submitted values.
+	 * @param string $key      Setting key.
+	 * @param string $existing Currently stored value.
+	 * @param string $default  Default value.
+	 * @return string
+	 */
+	private static function pick_model( array $input, $key, $existing, $default ) {
+		if ( ! isset( $input[ $key ] ) ) {
+			return $existing;
+		}
+
+		$chosen = trim( sanitize_text_field( $input[ $key ] ) );
+
+		if ( '__custom__' === $chosen ) {
+			$chosen = isset( $input[ $key . '_custom' ] ) ? trim( sanitize_text_field( $input[ $key . '_custom' ] ) ) : '';
+		}
+
+		if ( '' === $chosen ) {
+			return $default;
+		}
+
+		return $chosen;
+	}
+
+	/**
 	 * Keeps only usable term IDs.
 	 *
 	 * Not absint(): folding -3 into 3 would silently bind a set to whichever
@@ -521,20 +551,18 @@ class WP_AI_Advisor_Settings {
 		if ( ! self::api_key_is_constant() && isset( $input['api_key'] ) ) {
 			$submitted = trim( sanitize_text_field( $input['api_key'] ) );
 
-			if ( '' !== $submitted ) {
+			if ( '' !== $submitted && $submitted !== $existing['api_key'] ) {
 				$output['api_key'] = $submitted;
+
+				// A different key may reach a different set of models.
+				if ( class_exists( 'WP_AI_Advisor_OpenAI_Client' ) ) {
+					WP_AI_Advisor_OpenAI_Client::forget_models();
+				}
 			}
 		}
 
-		if ( isset( $input['model'] ) ) {
-			$model            = sanitize_text_field( $input['model'] );
-			$output['model']  = '' !== $model ? $model : $defaults['model'];
-		}
-
-		if ( isset( $input['embedding_model'] ) ) {
-			$embedding                 = sanitize_text_field( $input['embedding_model'] );
-			$output['embedding_model'] = '' !== $embedding ? $embedding : $defaults['embedding_model'];
-		}
+		$output['model']           = self::pick_model( $input, 'model', $existing['model'], $defaults['model'] );
+		$output['embedding_model'] = self::pick_model( $input, 'embedding_model', $existing['embedding_model'], $defaults['embedding_model'] );
 
 		if ( isset( $input['temperature'] ) ) {
 			$output['temperature'] = (float) max( 0, min( 2, (float) $input['temperature'] ) );

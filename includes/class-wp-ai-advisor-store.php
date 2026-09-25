@@ -21,6 +21,7 @@ class WP_AI_Advisor_Store {
 	const TYPE_PAGE        = 'page';
 	const TYPE_DOCUMENT    = 'document';
 	const TYPE_LOCAL       = 'local';
+	const TYPE_NOTE        = 'note';
 
 	/**
 	 * Sources table name.
@@ -279,6 +280,67 @@ class WP_AI_Advisor_Store {
 
 			return $existing;
 		}
+
+		$wpdb->insert( self::sources_table(), $row ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Creates or updates a hand-written note.
+	 *
+	 * Notes hold their text directly rather than pointing at a file or a URL, so
+	 * a correction can be typed in without producing a document to maintain.
+	 *
+	 * @param string $title    Note title.
+	 * @param string $content  Note body.
+	 * @param string $language Language code.
+	 * @param int    $note_id  Existing note to replace, or 0 for a new one.
+	 * @return int|WP_Error Source ID.
+	 */
+	public static function put_note( $title, $content, $language = '', $note_id = 0 ) {
+		global $wpdb;
+
+		$content = trim( (string) $content );
+
+		if ( '' === $content ) {
+			return new WP_Error( 'wp_ai_advisor_empty_note', __( 'A note needs some text.', 'wp-ai-advisor' ) );
+		}
+
+		$row = array(
+			'title'        => $title,
+			'content'      => $content,
+			'status'       => self::STATUS_FETCHED,
+			'message'      => '',
+			'content_hash' => md5( $content ),
+			'language'     => $language,
+			'attempts'     => 0,
+			'updated_at'   => current_time( 'mysql' ),
+		);
+
+		$note_id = (int) $note_id;
+
+		if ( $note_id > 0 ) {
+			$existing = self::get_source( $note_id );
+
+			if ( ! $existing || self::TYPE_NOTE !== $existing['type'] ) {
+				return new WP_Error( 'wp_ai_advisor_unknown_note', __( 'That note no longer exists.', 'wp-ai-advisor' ) );
+			}
+
+			$wpdb->update( self::sources_table(), $row, array( 'id' => $note_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+			// The text changed, so the old vectors no longer describe it.
+			self::delete_chunks( $note_id );
+
+			return $note_id;
+		}
+
+		$row['type']     = self::TYPE_NOTE;
+		$row['url']      = '';
+		$row['url_hash'] = md5( 'note:' . wp_generate_uuid4() );
+		$row['links']    = '';
+		$row['depth']    = 0;
+		$row['ref']      = 0;
 
 		$wpdb->insert( self::sources_table(), $row ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
@@ -657,23 +719,31 @@ class WP_AI_Advisor_Store {
 		$table        = self::sources_table();
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 
-		// Documents cannot be re-fetched, only re-embedded.
-		$params = array_merge( array( self::STATUS_PENDING, current_time( 'mysql' ), self::TYPE_DOCUMENT ), $ids );
+		// Only pages and local posts can be fetched again; a document or a note
+		// carries its own text, and sending one back to a queue nothing serves
+		// would strand it.
+		$params = array_merge(
+			array( self::STATUS_PENDING, current_time( 'mysql' ), self::TYPE_PAGE, self::TYPE_LOCAL ),
+			$ids
+		);
 
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
 				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s
-				 WHERE type <> %s AND id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				 WHERE type IN ( %s, %s ) AND id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$params
 			)
 		);
 
-		$params = array_merge( array( self::STATUS_FETCHED, current_time( 'mysql' ), self::TYPE_DOCUMENT ), $ids );
+		$params = array_merge(
+			array( self::STATUS_FETCHED, current_time( 'mysql' ), self::TYPE_PAGE, self::TYPE_LOCAL ),
+			$ids
+		);
 
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
 				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s
-				 WHERE type = %s AND id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				 WHERE type NOT IN ( %s, %s ) AND content <> '' AND id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$params
 			)
 		);
@@ -710,11 +780,12 @@ class WP_AI_Advisor_Store {
 
 		$without_content = (int) $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$wpdb->prepare(
-				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s WHERE status = %s AND content = '' AND type <> %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"UPDATE {$table} SET status = %s, message = '', attempts = 0, updated_at = %s WHERE status = %s AND content = '' AND type IN ( %s, %s )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				self::STATUS_PENDING,
 				$now,
 				self::STATUS_ERROR,
-				self::TYPE_DOCUMENT
+				self::TYPE_PAGE,
+				self::TYPE_LOCAL
 			)
 		);
 

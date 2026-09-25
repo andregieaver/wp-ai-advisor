@@ -68,6 +68,9 @@ class WP_AI_Advisor_REST_Controller {
 			'/sources/delete' => 'delete_source',
 			'/sources/retry'  => 'retry_failed',
 			'/sources/bulk'   => 'bulk_sources',
+			'/notes'          => 'save_note',
+			'/notes/get'      => 'get_note',
+			'/models'         => 'list_models',
 			'/clear'        => 'clear',
 			'/test'         => 'test_connection',
 		);
@@ -569,6 +572,86 @@ class WP_AI_Advisor_REST_Controller {
 	}
 
 	/**
+	 * Creates or updates a note, then leaves it queued for embedding.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function save_note( WP_REST_Request $request ) {
+		$title    = sanitize_text_field( (string) $request->get_param( 'title' ) );
+		$content  = sanitize_textarea_field( (string) $request->get_param( 'content' ) );
+		$language = WP_AI_Advisor_Language::normalize( $request->get_param( 'language' ) );
+		$note_id  = absint( $request->get_param( 'id' ) );
+
+		if ( '' === trim( $title ) ) {
+			$title = __( 'Note', 'wp-ai-advisor' );
+		}
+
+		$result = WP_AI_Advisor_Store::put_note(
+			$title,
+			$content,
+			$language ? $language : WP_AI_Advisor_Language::site(),
+			$note_id
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$result->add_data( array( 'status' => 400 ) );
+
+			return $result;
+		}
+
+		return rest_ensure_response(
+			array(
+				'id'    => $result,
+				'stats' => WP_AI_Advisor_Store::stats(),
+			)
+		);
+	}
+
+	/**
+	 * One note, for editing.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function get_note( WP_REST_Request $request ) {
+		$source = WP_AI_Advisor_Store::get_source( absint( $request->get_param( 'id' ) ) );
+
+		if ( ! $source || WP_AI_Advisor_Store::TYPE_NOTE !== $source['type'] ) {
+			return new WP_Error(
+				'wp_ai_advisor_unknown_note',
+				__( 'That note no longer exists.', 'wp-ai-advisor' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		return rest_ensure_response(
+			array(
+				'id'       => (int) $source['id'],
+				'title'    => $source['title'],
+				'content'  => $source['content'],
+				'language' => $source['language'],
+			)
+		);
+	}
+
+	/**
+	 * The models available to the configured key.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function list_models( WP_REST_Request $request ) {
+		$models = ( new WP_AI_Advisor_OpenAI_Client() )->list_models( (bool) $request->get_param( 'refresh' ) );
+
+		if ( is_wp_error( $models ) ) {
+			return $models;
+		}
+
+		return rest_ensure_response( $models );
+	}
+
+	/**
 	 * Deletes one source and its chunks.
 	 *
 	 * @param WP_REST_Request $request Request object.
@@ -661,7 +744,7 @@ class WP_AI_Advisor_REST_Controller {
 	public function clear( WP_REST_Request $request ) {
 		$type = sanitize_key( (string) $request->get_param( 'type' ) );
 
-		WP_AI_Advisor_Store::clear( in_array( $type, array( 'page', 'local', 'document' ), true ) ? $type : '' );
+		WP_AI_Advisor_Store::clear( in_array( $type, array( 'page', 'local', 'document', 'note' ), true ) ? $type : '' );
 
 		return rest_ensure_response(
 			array(

@@ -101,6 +101,9 @@ class WP_AI_Advisor_Admin {
 					'nothingSelected' => __( 'Choose an action and at least one source first.', 'wp-ai-advisor' ),
 					'confirmDelete'   => __( 'Delete %d sources from the knowledge base?', 'wp-ai-advisor' ),
 					'confirmDuplicates' => __( 'Delete every duplicate source? One copy of each URL is kept.', 'wp-ai-advisor' ),
+					'noteEmpty'     => __( 'Write something in the note first.', 'wp-ai-advisor' ),
+					'modelsFound'   => __( '%d chat models available. %s', 'wp-ai-advisor' ),
+					'reloadForList' => __( 'Reload the page to see them.', 'wp-ai-advisor' ),
 					'crawling'   => __( 'Crawling %s', 'wp-ai-advisor' ),
 					'importing'  => __( 'Importing %s', 'wp-ai-advisor' ),
 					'indexing'   => __( 'Indexing %s', 'wp-ai-advisor' ),
@@ -331,6 +334,70 @@ class WP_AI_Advisor_Admin {
 		</p>
 
 		<p class="aiadv-admin__log" id="aiadv-log" role="status" aria-live="polite"></p>
+
+		<h2><?php esc_html_e( 'Your own notes', 'wp-ai-advisor' ); ?></h2>
+		<p class="description">
+			<?php esc_html_e( 'Small facts the website does not spell out — opening hours over Christmas, a delivery time, a correction. Indexed the same as everything else, so the advisor can answer from them.', 'wp-ai-advisor' ); ?>
+		</p>
+
+		<div class="aiadv-admin__note-form">
+			<input type="hidden" id="aiadv-note-id" value="0" />
+			<p>
+				<label for="aiadv-note-title"><strong><?php esc_html_e( 'Title', 'wp-ai-advisor' ); ?></strong></label><br />
+				<input type="text" id="aiadv-note-title" class="regular-text" placeholder="<?php esc_attr_e( 'Opening hours at Christmas', 'wp-ai-advisor' ); ?>" />
+				<label for="aiadv-note-language" class="screen-reader-text"><?php esc_html_e( 'Language', 'wp-ai-advisor' ); ?></label>
+				<select id="aiadv-note-language">
+					<?php $note_language = WP_AI_Advisor_Language::site(); ?>
+					<?php foreach ( WP_AI_Advisor_Language::names() as $code => $name ) : ?>
+						<option value="<?php echo esc_attr( $code ); ?>"<?php selected( $note_language, $code ); ?>>
+							<?php echo esc_html( $name ); ?>
+						</option>
+					<?php endforeach; ?>
+				</select>
+			</p>
+			<p>
+				<label for="aiadv-note-content" class="screen-reader-text"><?php esc_html_e( 'Note', 'wp-ai-advisor' ); ?></label>
+				<textarea id="aiadv-note-content" rows="4" class="large-text" placeholder="<?php esc_attr_e( 'Write the fact as you would say it to a customer.', 'wp-ai-advisor' ); ?>"></textarea>
+			</p>
+			<p>
+				<button type="button" class="button button-primary" id="aiadv-note-save"><?php esc_html_e( 'Save note', 'wp-ai-advisor' ); ?></button>
+				<button type="button" class="button" id="aiadv-note-cancel" hidden><?php esc_html_e( 'Cancel', 'wp-ai-advisor' ); ?></button>
+			</p>
+		</div>
+
+		<?php $notes = WP_AI_Advisor_Store::list_sources( WP_AI_Advisor_Store::TYPE_NOTE ); ?>
+		<?php if ( $notes ) : ?>
+			<table class="widefat striped aiadv-admin__table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Title', 'wp-ai-advisor' ); ?></th>
+						<th><?php esc_html_e( 'Language', 'wp-ai-advisor' ); ?></th>
+						<th><?php esc_html_e( 'Status', 'wp-ai-advisor' ); ?></th>
+						<th><?php esc_html_e( 'Updated', 'wp-ai-advisor' ); ?></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $notes as $note ) : ?>
+						<tr>
+							<td><?php echo esc_html( $note['title'] ); ?></td>
+							<td><?php echo esc_html( $note['language'] ? $note['language'] : '—' ); ?></td>
+							<td><?php echo esc_html( $note['status'] ); ?></td>
+							<td><?php echo esc_html( $note['updated_at'] ); ?></td>
+							<td>
+								<button type="button" class="button-link aiadv-admin__edit-note" data-id="<?php echo (int) $note['id']; ?>">
+									<?php esc_html_e( 'Edit', 'wp-ai-advisor' ); ?>
+								</button>
+								|
+								<button type="button" class="button-link aiadv-admin__delete" data-id="<?php echo (int) $note['id']; ?>">
+									<?php esc_html_e( 'Delete', 'wp-ai-advisor' ); ?>
+								</button>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
 
 		<h2><?php esc_html_e( 'Additional documents', 'wp-ai-advisor' ); ?></h2>
 		<p class="description">
@@ -616,23 +683,103 @@ class WP_AI_Advisor_Admin {
 	}
 
 	/**
-	 * Chat model field.
+	 * Chat model dropdown.
 	 *
 	 * @return void
 	 */
 	public function render_model() {
-		$this->text_field( 'model' );
-		$this->description( __( 'Any chat model your account can use, for example gpt-4o-mini or gpt-4o.', 'wp-ai-advisor' ) );
+		$this->model_select( 'model', $this->model_choices( 'chat' ) );
+
+		$this->description( __( 'The model that writes the answers. The list comes from your own API key, so it shows what you can actually use.', 'wp-ai-advisor' ) );
+		$this->description( __( 'Reasoning models (the o-series) take different parameters and will not work here without a code change — stick to the gpt- models unless you know otherwise.', 'wp-ai-advisor' ) );
+
+		printf(
+			'<p><button type="button" class="button" id="aiadv-refresh-models">%s</button> <span id="aiadv-models-note" class="description"></span></p>',
+			esc_html__( 'Refresh model list', 'wp-ai-advisor' )
+		);
 	}
 
 	/**
-	 * Embedding model field.
+	 * Embedding model dropdown.
 	 *
 	 * @return void
 	 */
 	public function render_embedding_model() {
-		$this->text_field( 'embedding_model' );
-		$this->description( __( 'Changing this invalidates the stored vectors — re-crawl afterwards.', 'wp-ai-advisor' ) );
+		$this->model_select( 'embedding_model', $this->model_choices( 'embedding' ) );
+
+		$this->description( __( 'Used to index your content and to match questions against it. Changing it invalidates the stored vectors — rebuild the knowledge base afterwards.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Renders a model dropdown with an escape hatch for anything not listed.
+	 *
+	 * @param string   $key     Setting key.
+	 * @param string[] $choices Model ids.
+	 * @return void
+	 */
+	private function model_select( $key, array $choices ) {
+		$current = (string) WP_AI_Advisor_Settings::get( $key );
+		$known   = in_array( $current, $choices, true );
+
+		printf(
+			'<select id="wp_ai_advisor_%1$s" name="%2$s" class="aiadv-admin__model" data-target="wp_ai_advisor_%1$s_custom">',
+			esc_attr( $key ),
+			esc_attr( $this->name( $key ) )
+		);
+
+		foreach ( $choices as $choice ) {
+			printf(
+				'<option value="%1$s"%2$s>%3$s</option>',
+				esc_attr( $choice ),
+				selected( $current, $choice, false ),
+				esc_html( $choice )
+			);
+		}
+
+		printf(
+			'<option value="__custom__"%1$s>%2$s</option>',
+			selected( $known, false, false ),
+			esc_html__( 'Something else…', 'wp-ai-advisor' )
+		);
+
+		echo '</select> ';
+
+		// Carries the value when the dropdown cannot: a model the key cannot
+		// list, or one added after this list was cached.
+		printf(
+			'<input type="text" id="wp_ai_advisor_%1$s_custom" name="%2$s" value="%3$s" class="regular-text aiadv-admin__model-custom" placeholder="%4$s"%5$s />',
+			esc_attr( $key ),
+			esc_attr( $this->name( $key . '_custom' ) ),
+			esc_attr( $known ? '' : $current ),
+			esc_attr__( 'model-id', 'wp-ai-advisor' ),
+			$known ? ' hidden' : ''
+		);
+	}
+
+	/**
+	 * Model ids to offer, live where possible.
+	 *
+	 * @param string $kind 'chat' or 'embedding'.
+	 * @return string[]
+	 */
+	private function model_choices( $kind ) {
+		$fallback = 'chat' === $kind
+			? array( 'gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1' )
+			: array( 'text-embedding-3-small', 'text-embedding-3-large' );
+
+		$client = new WP_AI_Advisor_OpenAI_Client();
+		$models = $client->is_configured() ? $client->list_models() : null;
+
+		$choices = ( is_array( $models ) && ! empty( $models[ $kind ] ) ) ? $models[ $kind ] : $fallback;
+
+		// Whatever is saved stays selectable, even if the account cannot list it.
+		$current = (string) WP_AI_Advisor_Settings::get( 'chat' === $kind ? 'model' : 'embedding_model' );
+
+		if ( '' !== $current && ! in_array( $current, $choices, true ) ) {
+			array_unshift( $choices, $current );
+		}
+
+		return $choices;
 	}
 
 	/**

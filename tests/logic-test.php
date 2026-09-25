@@ -225,6 +225,49 @@ calc_rejects( 'abs(1, 2)', 'too many arguments' );
 calc_rejects( str_repeat( '1+', 400 ) . '1', 'over-long expressions' );
 calc_rejects( str_repeat( '(', 40 ) . '1' . str_repeat( ')', 40 ), 'deep nesting' );
 
+// --- Model list filtering --------------------------------------------------
+// The models endpoint lists everything the key can reach, including speech and
+// image models that would fail on the first request.
+$reflection = new ReflectionMethod( 'WP_AI_Advisor_OpenAI_Client', 'is_chat_model' );
+$reflection->setAccessible( true );
+
+foreach ( array( 'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'chatgpt-4o-latest', 'o3-mini' ) as $id ) {
+	check( 'offers ' . $id, $reflection->invoke( null, $id ), true );
+}
+
+foreach (
+	array(
+		'text-embedding-3-small',
+		'whisper-1',
+		'tts-1-hd',
+		'dall-e-3',
+		'gpt-4o-audio-preview',
+		'gpt-4o-realtime-preview',
+		'gpt-4o-transcribe',
+		'omni-moderation-latest',
+		'gpt-image-1',
+		'gpt-3.5-turbo-instruct',
+	) as $id
+) {
+	check( 'hides ' . $id, $reflection->invoke( null, $id ), false );
+}
+
+// --- Model setting ---------------------------------------------------------
+$picked = WP_AI_Advisor_Settings::sanitize( array( 'model' => 'gpt-4o' ) );
+check( 'a listed model is stored', $picked['model'], 'gpt-4o' );
+
+$picked = WP_AI_Advisor_Settings::sanitize( array( 'model' => '__custom__', 'model_custom' => ' gpt-5-preview ' ) );
+check( 'a custom model is taken from its own field', $picked['model'], 'gpt-5-preview' );
+
+$picked = WP_AI_Advisor_Settings::sanitize( array( 'model' => '__custom__', 'model_custom' => '   ' ) );
+check( 'an empty custom model falls back to the default', $picked['model'], 'gpt-4o-mini' );
+
+$picked = WP_AI_Advisor_Settings::sanitize( array( 'embedding_model' => '__custom__', 'embedding_model_custom' => 'text-embedding-3-large' ) );
+check( 'the embedding model uses the same rule', $picked['embedding_model'], 'text-embedding-3-large' );
+
+$picked = WP_AI_Advisor_Settings::sanitize( array( 'temperature' => '0.5' ) );
+check( 'an untouched model keeps its value', $picked['model'], 'gpt-4o-mini' );
+
 // --- Language detection ----------------------------------------------------
 check( 'normalize drops region', WP_AI_Advisor_Language::normalize( 'nb_NO' ), 'nb' );
 check( 'normalize handles hyphenated tags', WP_AI_Advisor_Language::normalize( 'pt-BR' ), 'pt' );

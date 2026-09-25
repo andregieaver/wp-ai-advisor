@@ -13,6 +13,7 @@
 
 define( 'ABSPATH', sys_get_temp_dir() . '/' );
 define( 'WP_AI_ADVISOR_VERSION', 'test' );
+define( 'HOUR_IN_SECONDS', 3600 );
 
 /**
  * Stand-in for WordPress's error object.
@@ -182,6 +183,7 @@ require_once $root . 'class-wp-ai-advisor-store.php';
 require_once $root . 'class-wp-ai-advisor-text.php';
 require_once $root . 'class-wp-ai-advisor-language.php';
 require_once $root . 'class-wp-ai-advisor-calculator.php';
+require_once $root . 'class-wp-ai-advisor-openai-client.php';
 require_once $root . 'class-wp-ai-advisor-page-context.php';
 require_once $root . 'class-wp-ai-advisor-crawler.php';
 require_once $root . 'class-wp-ai-advisor-indexer.php';

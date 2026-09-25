@@ -16,6 +16,8 @@ class WP_AI_Advisor_OpenAI_Client {
 	const REQUEST_TIMEOUT = 60;
 	const EMBED_BATCH     = 64;
 	const MAX_TOOL_ROUNDS = 4;
+	const MODELS_CACHE    = 'wp_ai_advisor_models';
+	const MODELS_TTL      = 12 * HOUR_IN_SECONDS;
 
 	/**
 	 * API key used for requests.
@@ -341,6 +343,105 @@ class WP_AI_Advisor_OpenAI_Client {
 		}
 
 		return $vectors;
+	}
+
+	/**
+	 * The chat and embedding models this key can use.
+	 *
+	 * Fetched from the API rather than hard-coded: a baked-in list goes stale the
+	 * moment a model ships or is retired, and then silently offers something that
+	 * no longer works. Cached, because the settings screen should not make an
+	 * HTTP request on every load.
+	 *
+	 * @param bool $refresh Ignore the cache.
+	 * @return array|WP_Error {chat, embedding, cached}
+	 */
+	public function list_models( $refresh = false ) {
+		if ( ! $refresh ) {
+			$cached = get_transient( self::MODELS_CACHE );
+
+			if ( is_array( $cached ) ) {
+				$cached['cached'] = true;
+
+				return $cached;
+			}
+		}
+
+		$parsed = $this->request( '/models', null );
+
+		if ( is_wp_error( $parsed ) ) {
+			return $parsed;
+		}
+
+		$chat      = array();
+		$embedding = array();
+
+		foreach ( isset( $parsed['data'] ) ? (array) $parsed['data'] : array() as $model ) {
+			$id = isset( $model['id'] ) ? (string) $model['id'] : '';
+
+			if ( '' === $id ) {
+				continue;
+			}
+
+			if ( false !== strpos( $id, 'embedding' ) ) {
+				$embedding[] = $id;
+				continue;
+			}
+
+			if ( self::is_chat_model( $id ) ) {
+				$chat[] = $id;
+			}
+		}
+
+		sort( $chat );
+		sort( $embedding );
+
+		$models = array(
+			'chat'      => $chat,
+			'embedding' => $embedding,
+			'cached'    => false,
+		);
+
+		set_transient( self::MODELS_CACHE, $models, self::MODELS_TTL );
+
+		return $models;
+	}
+
+	/**
+	 * Whether a model id looks like one that can hold a conversation.
+	 *
+	 * The models endpoint lists everything the key can reach, including speech,
+	 * image and moderation models that would fail on the first request.
+	 *
+	 * @param string $id Model id.
+	 * @return bool
+	 */
+	private static function is_chat_model( $id ) {
+		if ( ! preg_match( '/^(gpt-|chatgpt-|o[0-9])/i', $id ) ) {
+			return false;
+		}
+
+		$excluded = array(
+			'audio', 'realtime', 'transcribe', 'tts', 'whisper', 'image',
+			'dall-e', 'moderation', 'search', 'instruct', 'vision-preview',
+		);
+
+		foreach ( $excluded as $needle ) {
+			if ( false !== stripos( $id, $needle ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Clears the cached model list.
+	 *
+	 * @return void
+	 */
+	public static function forget_models() {
+		delete_transient( self::MODELS_CACHE );
 	}
 
 	/**

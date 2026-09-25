@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.7.1
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,7 @@ Features:
 * `[ai_advisor]` shortcode, fully responsive, dark or light
 * Built-in crawler that follows your sitemap and internal links
 * Or index posts directly from WordPress, with no HTTP requests — or do both
+* Add short notes straight from the settings page, no document needed
 * Upload extra documents (txt, md, csv, json, html, docx, pdf)
 * Answers restricted to your own content, with a configurable off-topic reply
 * Admin-only mode for testing on a live site
@@ -107,11 +108,21 @@ sub-category inherits the parent's set.
 Yes. Use [ai_advisor layout="compact"] in a product template. The widget adopts that
 product, pins its content into every answer, and reads its price range field live.
 
+= I just need to add one small fact. Do I have to make a document? =
+
+No. Use Your own notes on the Knowledge base tab: give it a title, type the fact, save.
+It is indexed like any other source and survives a rebuild.
+
 = Can it read scanned PDFs? =
 
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.8.0 =
+* The chat and embedding models are now dropdowns, built from the models your API key can reach.
+* Added notes: short facts typed straight into the Knowledge base tab, editable in place.
+* Fixed bulk requeue stranding documents and notes in a queue nothing serves.
 
 = 0.7.1 =
 * Fixed the general questions being replaced by the product questions on ordinary pages.

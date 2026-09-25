@@ -164,7 +164,11 @@ Neither mode updates itself. Re-run a build after the site changes.
 
 ## Settings
 
-**OpenAI connection** — API key, chat model (default `gpt-4o-mini`), embedding model (default `text-embedding-3-small`), temperature, max answer tokens.
+**OpenAI connection** — API key, chat model, embedding model, temperature, max answer tokens.
+
+Both models are dropdowns built from **your own key**: the plugin asks the API what it can reach, caches the answer for twelve hours, and filters out the speech, image and moderation models that would fail on the first request. A hard-coded list would go stale the moment a model ships or is retired, and then quietly offer something that no longer works. **Something else…** takes a model id by hand for anything newer than the cache, and whatever is already saved stays selectable even if the key cannot list it. **Refresh model list** re-fetches; changing the API key clears the cache by itself.
+
+Reasoning models (the o-series) take different request parameters and will not work without a code change — use the `wp_ai_advisor_request_body` filter if you need one.
 
 **Knowledge source** — mode, local post types, crawl base URL, page limit, URL fragments to skip, plus:
 
@@ -200,6 +204,7 @@ The counters distinguish **To fetch** (queued, not yet retrieved) from **To inde
 A run survives transient failures: each step is retried up to three times with a backoff, and a phase that still gives up no longer cancels the phases after it. Nothing is lost when a run stops — Resume continues from the queue.
 
 Importing local content means standing inside `the_content`, which is a hostile place outside a real front-end request: other plugins hook it and may echo markup — corrupting the JSON response — or call template functions that do not exist in REST, which is a fatal. So the filter runs inside an output buffer with stray output discarded, crashes fall back to rendering the stored blocks, every admin endpoint returns JSON even when something under it explodes, and each source records an attempt *before* the risky work. That last one matters: a source that crashes the request uncatchably (a timeout, an exhausted memory limit) is set aside after three tries instead of trapping the queue on one row forever.
+- **Your own notes** — type a small fact straight into the page: opening hours over Christmas, a delivery time, a correction. Indexed exactly like everything else, editable in place, and untouched by a rebuild, so a note does not need a document to live in.
 - **Additional documents** — upload `.txt`, `.md`, `.csv`, `.json`, `.html`, `.docx`, `.pdf`. Useful for price lists or policies the website does not spell out.
 - **Sources table** — every page, imported post and document with its status, plus per-row delete.
 
@@ -218,6 +223,8 @@ PDF text extraction is best-effort and built in — it reads Flate-compressed an
 | `/wp-json/wp-ai-advisor/v1/local/start`, `/local/step` | POST | `manage_options` |
 | `/wp-json/wp-ai-advisor/v1/index/step` | POST | `manage_options` |
 | `/wp-json/wp-ai-advisor/v1/documents` | POST | `manage_options` |
+| `/wp-json/wp-ai-advisor/v1/notes`, `/notes/get` | POST | `manage_options` |
+| `/wp-json/wp-ai-advisor/v1/models` | POST | `manage_options` |
 | `/wp-json/wp-ai-advisor/v1/sources/delete`, `/clear`, `/test` | POST | `manage_options` |
 
 All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, history, language, post_id}` and returns:
@@ -265,11 +272,11 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 ## Tests
 
 ```bash
-php tests/logic-test.php     # 141 checks
+php tests/logic-test.php     # 161 checks
 node tests/markdown-test.js  # 19 checks
 ```
 
-The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, which post types the widget adopts, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, which post types the widget adopts, chat-model filtering, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 
