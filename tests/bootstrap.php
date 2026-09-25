@@ -102,7 +102,13 @@ function __( $text, $domain = '' ) { return $text; }
 function apply_filters( $tag, $value ) { return $value; }
 function get_bloginfo( $key ) { return 'Test Site'; }
 function home_url() { return 'https://example.test'; }
-function get_option( $key, $default = false ) { return $default; }
+$GLOBALS['wp_ai_advisor_test_options'] = array();
+function get_option( $key, $default = false ) {
+	return array_key_exists( $key, $GLOBALS['wp_ai_advisor_test_options'] )
+		? $GLOBALS['wp_ai_advisor_test_options'][ $key ]
+		: $default;
+}
+function update_option( $key, $value ) { $GLOBALS['wp_ai_advisor_test_options'][ $key ] = $value; return true; }
 function current_time( $type ) { return gmdate( 'Y-m-d H:i:s' ); }
 function current_user_can( $capability ) { return false; }
 function get_post_types( $args = array(), $output = 'names' ) { return array( 'post', 'page' ); }

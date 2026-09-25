@@ -79,7 +79,9 @@ A page-aware widget also gets its own suggested questions, and a question answer
 
 ### Price range field
 
-Set **Price range field** under **Settings → AI Advisor → Page context** to the name of a custom field holding a price range as text — an ACF text field works as-is, since ACF stores plain text under the field name. The default is `price_range`.
+Set **Price range field** under **Settings → AI Advisor → Page context** to the name of a custom field holding a price range as text — an ACF text field works as-is, since ACF stores plain text under the field name. The default is `hvor_mye_koster_det`.
+
+The field name is treated as a meta key, so its case is preserved: `priceRange` and `pricerange` are different fields.
 
 When the field holds a value it is:
 
@@ -249,11 +251,11 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 ## Tests
 
 ```bash
-php tests/logic-test.php     # 112 checks
+php tests/logic-test.php     # 119 checks
 node tests/markdown-test.js  # 19 checks
 ```
 
-The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 

@@ -853,7 +853,7 @@ class WP_AI_Advisor_Admin {
 	 * @return void
 	 */
 	public function render_price_field() {
-		$this->text_field( 'price_field', 'text', 'regular-text', array( 'placeholder' => 'price_range' ) );
+		$this->text_field( 'price_field', 'text', 'regular-text', array( 'placeholder' => 'hvor_mye_koster_det' ) );
 
 		$this->description( __( 'Name of the custom field holding a price range as text, such as an ACF field. Read live from the page the visitor is on, so edits apply straight away. Leave blank to ignore it.', 'wp-ai-advisor' ) );
 

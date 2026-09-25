@@ -16,6 +16,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-wp-ai-advisor-store.p
  */
 function wp_ai_advisor_uninstall_site() {
 	delete_option( 'wp_ai_advisor_settings' );
+	delete_option( 'wp_ai_advisor_settings_version' );
 	delete_option( WP_AI_Advisor_Store::DB_VERSION_KEY );
 
 	WP_AI_Advisor_Store::drop();

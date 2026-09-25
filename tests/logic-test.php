@@ -264,7 +264,7 @@ check( 'zero is rejected', WP_AI_Advisor_Page_Context::validate( 0 ), 0 );
 check( 'negative id is rejected', WP_AI_Advisor_Page_Context::validate( -10 ), 0 );
 check( 'non-numeric id is rejected', WP_AI_Advisor_Page_Context::validate( 'abc' ), 0 );
 
-$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'price_range' => ' 12 900 – 18 400 kr ' );
+$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'hvor_mye_koster_det' => ' 12 900 – 18 400 kr ' );
 
 check(
 	'price range is read from the configured field',
@@ -282,9 +282,67 @@ check( 'nothing is indexed without a price range', WP_AI_Advisor_Page_Context::i
 check( 'unknown post renders nothing', WP_AI_Advisor_Page_Context::render( 9999 ), '' );
 
 // An HTML-bearing field value must not reach the prompt as markup.
-$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'price_range' => '<b>999</b> kr' );
+$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'hvor_mye_koster_det' => '<b>999</b> kr' );
 check( 'markup is stripped from field values', WP_AI_Advisor_Page_Context::price_range( 10 ), '999 kr' );
-$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'price_range' => '12 900 – 18 400 kr' );
+
+// The field name is a meta key, so case must survive sanitisation.
+check(
+	'field name keeps its case',
+	WP_AI_Advisor_Settings::sanitize( array( 'price_field' => 'hvor_mye_koster_det' ) )['price_field'],
+	'hvor_mye_koster_det'
+);
+check(
+	'mixed-case field name is preserved',
+	WP_AI_Advisor_Settings::sanitize( array( 'price_field' => 'priceRange' ) )['price_field'],
+	'priceRange'
+);
+check(
+	'unsafe characters are stripped from the field name',
+	WP_AI_Advisor_Settings::sanitize( array( 'price_field' => "hvor mye'; DROP--" ) )['price_field'],
+	'hvormyeDROP--'
+);
+$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'hvor_mye_koster_det' => '12 900 – 18 400 kr' );
+
+// --- Settings migration ----------------------------------------------------
+// A default only applies to a site that has never saved, so a renamed default
+// has to be migrated or it silently stops matching anything.
+$GLOBALS['wp_ai_advisor_test_options'] = array(
+	'wp_ai_advisor_settings' => array( 'price_field' => 'price_range' ),
+);
+WP_AI_Advisor_Settings::maybe_migrate();
+check(
+	'superseded default is migrated',
+	$GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings']['price_field'],
+	'hvor_mye_koster_det'
+);
+check(
+	'migration records its version',
+	(int) $GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings_version'],
+	1
+);
+
+$GLOBALS['wp_ai_advisor_test_options'] = array(
+	'wp_ai_advisor_settings' => array( 'price_field' => 'min_egen_pris' ),
+);
+WP_AI_Advisor_Settings::maybe_migrate();
+check(
+	'a deliberate field name is left alone',
+	$GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings']['price_field'],
+	'min_egen_pris'
+);
+
+$GLOBALS['wp_ai_advisor_test_options'] = array(
+	'wp_ai_advisor_settings'         => array( 'price_field' => 'price_range' ),
+	'wp_ai_advisor_settings_version' => 1,
+);
+WP_AI_Advisor_Settings::maybe_migrate();
+check(
+	'migration does not run a second time',
+	$GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings']['price_field'],
+	'price_range'
+);
+
+$GLOBALS['wp_ai_advisor_test_options'] = array();
 
 // --- Translation coverage --------------------------------------------------
 $pot = dirname( __DIR__ ) . '/languages/wp-ai-advisor.pot';

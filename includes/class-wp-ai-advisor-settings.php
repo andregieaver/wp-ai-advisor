@@ -15,6 +15,12 @@ class WP_AI_Advisor_Settings {
 	const OPTION_KEY = 'wp_ai_advisor_settings';
 
 	/**
+	 * Bumped when a stored setting needs rewriting on upgrade.
+	 */
+	const SETTINGS_VERSION     = 1;
+	const SETTINGS_VERSION_KEY = 'wp_ai_advisor_settings_version';
+
+	/**
 	 * Default settings.
 	 *
 	 * @return array
@@ -43,7 +49,7 @@ class WP_AI_Advisor_Settings {
 			'reply_language'   => 'auto',
 
 			// Page context.
-			'price_field'       => 'price_range',
+			'price_field'       => 'hvor_mye_koster_det',
 			'context_suggestions' => array(),
 
 			// Estimates.
@@ -225,6 +231,32 @@ class WP_AI_Advisor_Settings {
 		 * @param string $assumptions One per line.
 		 */
 		return (string) apply_filters( 'wp_ai_advisor_assumptions', $assumptions );
+	}
+
+	/**
+	 * Rewrites stored settings whose defaults have moved.
+	 *
+	 * A default only applies to a site that has never saved; once the options row
+	 * exists it holds the old value, and the setting quietly stops matching
+	 * anything. So a changed default is migrated — but only where the stored
+	 * value is still the superseded default, never over a deliberate choice.
+	 *
+	 * @return void
+	 */
+	public static function maybe_migrate() {
+		if ( (int) get_option( self::SETTINGS_VERSION_KEY, 0 ) >= self::SETTINGS_VERSION ) {
+			return;
+		}
+
+		$stored = get_option( self::OPTION_KEY, array() );
+
+		if ( is_array( $stored ) && isset( $stored['price_field'] ) && 'price_range' === $stored['price_field'] ) {
+			$stored['price_field'] = 'hvor_mye_koster_det';
+
+			update_option( self::OPTION_KEY, $stored );
+		}
+
+		update_option( self::SETTINGS_VERSION_KEY, self::SETTINGS_VERSION );
 	}
 
 	/**
@@ -433,7 +465,9 @@ class WP_AI_Advisor_Settings {
 		}
 
 		if ( isset( $input['price_field'] ) ) {
-			$output['price_field'] = sanitize_key( $input['price_field'] );
+			// Not sanitize_key(): that lowercases, and a meta key is
+			// case-sensitive, so a field named priceRange would stop resolving.
+			$output['price_field'] = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $input['price_field'] );
 		}
 
 		if ( isset( $input['context_suggestions'] ) ) {

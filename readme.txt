@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -105,6 +105,10 @@ product, pins its content into every answer, and reads its price range field liv
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.6.1 =
+* Default price range field is now hvor_mye_koster_det, migrated on sites that still hold the old default.
+* Field names keep their case, so a mixed-case meta key still resolves.
 
 = 0.6.0 =
 * The widget can now answer about the page it sits on, so "what is special about this one" works.

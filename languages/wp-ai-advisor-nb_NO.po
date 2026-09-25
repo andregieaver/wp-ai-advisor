@@ -988,49 +988,49 @@ msgstr "Ukjent massehandling."
 msgid "You have reached the question limit for now. Please try again later."
 msgstr "Du har nådd grensen for antall spørsmål nå. Prøv igjen senere."
 
-#: includes/class-wp-ai-advisor-settings.php:190
+#: includes/class-wp-ai-advisor-settings.php:196
 msgid "What do you offer?"
 msgstr "Hva tilbyr dere?"
 
-#: includes/class-wp-ai-advisor-settings.php:191
+#: includes/class-wp-ai-advisor-settings.php:197
 msgid "Where can I find you?"
 msgstr "Hvor finner jeg dere?"
 
-#: includes/class-wp-ai-advisor-settings.php:192
+#: includes/class-wp-ai-advisor-settings.php:198
 msgid "What are your opening hours?"
 msgstr "Hva er åpningstidene deres?"
 
-#: includes/class-wp-ai-advisor-settings.php:215
+#: includes/class-wp-ai-advisor-settings.php:221
 msgid "One person drinks about 2.5 cups of coffee per working day."
 msgstr "En person drikker omtrent 2,5 kopper kaffe per arbeidsdag."
 
-#: includes/class-wp-ai-advisor-settings.php:216
+#: includes/class-wp-ai-advisor-settings.php:222
 msgid "A month has about 21 working days."
 msgstr "En måned har omtrent 21 arbeidsdager."
 
-#: includes/class-wp-ai-advisor-settings.php:217
+#: includes/class-wp-ai-advisor-settings.php:223
 msgid "Prices are used exactly as the site states them, including whether VAT is mentioned."
 msgstr "Priser brukes nøyaktig slik nettstedet oppgir dem, inkludert om mva. er nevnt."
 
-#: includes/class-wp-ai-advisor-settings.php:241
+#: includes/class-wp-ai-advisor-settings.php:273
 msgid "What makes this one special?"
 msgstr "Hva er spesielt med denne?"
 
-#: includes/class-wp-ai-advisor-settings.php:242
+#: includes/class-wp-ai-advisor-settings.php:274
 msgid "What does this cost?"
 msgstr "Hva koster denne?"
 
-#: includes/class-wp-ai-advisor-settings.php:243
+#: includes/class-wp-ai-advisor-settings.php:275
 msgid "Who is this a good fit for?"
 msgstr "Hvem passer denne for?"
 
 #. translators: %s: site name.
-#: includes/class-wp-ai-advisor-settings.php:261
+#: includes/class-wp-ai-advisor-settings.php:293
 msgid "I can only answer questions about %s, and I could not find anything on that. Try asking about something else on the site."
 msgstr "Jeg kan bare svare på spørsmål om %s, og jeg fant ingenting om dette. Prøv å spørre om noe annet på nettstedet."
 
 #. translators: 1: site name, 2: site URL.
-#: includes/class-wp-ai-advisor-settings.php:280
+#: includes/class-wp-ai-advisor-settings.php:312
 msgid "You are the assistant for %1$s (%2$s). Answer visitor questions using only the supplied site excerpts. Be brief, concrete and friendly."
 msgstr "Du er assistenten for %1$s (%2$s). Svar på spørsmål fra besøkende kun ut fra utdragene fra nettstedet du får. Vær kort, konkret og vennlig."
 
