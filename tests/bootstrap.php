@@ -106,6 +106,48 @@ function get_option( $key, $default = false ) { return $default; }
 function current_time( $type ) { return gmdate( 'Y-m-d H:i:s' ); }
 function current_user_can( $capability ) { return false; }
 function get_post_types( $args = array(), $output = 'names' ) { return array( 'post', 'page' ); }
+
+// A tiny stand-in post store, so page-context logic can run without WordPress.
+$GLOBALS['wp_ai_advisor_test_posts'] = array();
+$GLOBALS['wp_ai_advisor_test_meta']  = array();
+$GLOBALS['wp_ai_advisor_test_types'] = array( 'post' => true, 'page' => true, 'product' => true, 'secret' => false );
+
+function wp_ai_advisor_test_post( $id, $args = array() ) {
+	$GLOBALS['wp_ai_advisor_test_posts'][ $id ] = (object) array_merge(
+		array(
+			'ID'            => $id,
+			'post_status'   => 'publish',
+			'post_type'     => 'product',
+			'post_title'    => 'Test post ' . $id,
+			'post_password' => '',
+			'post_content'  => '',
+		),
+		$args
+	);
+}
+
+function get_post( $id = null ) {
+	$id = is_object( $id ) ? $id->ID : (int) $id;
+
+	return isset( $GLOBALS['wp_ai_advisor_test_posts'][ $id ] ) ? $GLOBALS['wp_ai_advisor_test_posts'][ $id ] : null;
+}
+function get_post_type_object( $type ) {
+	if ( ! isset( $GLOBALS['wp_ai_advisor_test_types'][ $type ] ) ) { return null; }
+	return (object) array( 'public' => $GLOBALS['wp_ai_advisor_test_types'][ $type ], 'name' => $type );
+}
+function get_the_title( $post ) {
+	$post = is_object( $post ) ? $post : get_post( $post );
+	return $post ? $post->post_title : '';
+}
+function get_permalink( $post ) {
+	$post = is_object( $post ) ? $post : get_post( $post );
+	return $post ? 'https://example.test/produkt/' . $post->ID : '';
+}
+function get_post_meta( $id, $key = '', $single = false ) {
+	return isset( $GLOBALS['wp_ai_advisor_test_meta'][ $id ][ $key ] ) ? $GLOBALS['wp_ai_advisor_test_meta'][ $id ][ $key ] : '';
+}
+function get_object_taxonomies( $type, $output = 'names' ) { return array(); }
+function wp_get_post_terms( $id, $taxonomy, $args = array() ) { return array(); }
 // phpcs:enable
 
 $root = dirname( __DIR__ ) . '/includes/';
@@ -115,6 +157,7 @@ require_once $root . 'class-wp-ai-advisor-store.php';
 require_once $root . 'class-wp-ai-advisor-text.php';
 require_once $root . 'class-wp-ai-advisor-language.php';
 require_once $root . 'class-wp-ai-advisor-calculator.php';
+require_once $root . 'class-wp-ai-advisor-page-context.php';
 require_once $root . 'class-wp-ai-advisor-crawler.php';
 require_once $root . 'class-wp-ai-advisor-indexer.php';
 require_once $root . 'class-wp-ai-advisor-documents.php';

@@ -502,3 +502,60 @@
 		height: 2.5rem;
 	}
 }
+
+/* ---------------------------------------------------------------------------
+ * Compact layout — for a sidebar or a product page, where the widget is a
+ * supporting element rather than the point of the page.
+ * ------------------------------------------------------------------------ */
+
+.aiadv--compact {
+	max-width: 32rem;
+}
+
+.aiadv--compact .aiadv__card {
+	padding: clamp( 1rem, 2.5vw, 1.35rem );
+	border-radius: 18px;
+}
+
+.aiadv--compact .aiadv__intro {
+	grid-template-columns: 1fr;
+	gap: 1rem;
+}
+
+.aiadv--compact .aiadv__heading {
+	font-size: clamp( 1.1rem, 3vw, 1.35rem );
+	margin-bottom: 1rem;
+}
+
+.aiadv--compact .aiadv__launch {
+	width: 2.75rem;
+	height: 2.75rem;
+}
+
+.aiadv--compact .aiadv__icon {
+	width: 1.1rem;
+	height: 1.1rem;
+}
+
+/* The scroll hint belongs to the tall hero layout, not a sidebar card. */
+.aiadv--compact .aiadv__hint {
+	display: none;
+}
+
+.aiadv--compact .aiadv__suggestion {
+	padding: 0.625rem 0.875rem;
+	font-size: 0.875rem;
+}
+
+.aiadv--compact .aiadv__panel {
+	min-height: min( 50vh, 20rem );
+}
+
+.aiadv--compact .aiadv__log {
+	max-height: min( 50vh, 20rem );
+}
+
+.aiadv--compact .aiadv__message--assistant {
+	padding: 0.875rem;
+	text-align: start;
+}

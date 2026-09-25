@@ -209,6 +209,7 @@
 		this.history = [];
 		this.busy = false;
 		this.language = root.getAttribute( 'data-language' ) || '';
+		this.postId = parseInt( root.getAttribute( 'data-post-id' ), 10 ) || 0;
 	}
 
 	Widget.prototype.init = function () {
@@ -396,7 +397,8 @@
 				body: JSON.stringify( {
 					question: question,
 					history: this.history,
-					language: this.language
+					language: this.language,
+					post_id: this.postId
 				} )
 			} )
 			.then( function ( response ) {

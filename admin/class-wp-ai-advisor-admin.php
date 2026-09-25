@@ -136,6 +136,7 @@ class WP_AI_Advisor_Admin {
 			'sources'    => __( 'Knowledge source', 'wp-ai-advisor' ),
 			'grounding'  => __( 'Answering', 'wp-ai-advisor' ),
 			'estimates'  => __( 'Estimates', 'wp-ai-advisor' ),
+			'page'       => __( 'Page context', 'wp-ai-advisor' ),
 			'language'   => __( 'Language', 'wp-ai-advisor' ),
 			'access'     => __( 'Access', 'wp-ai-advisor' ),
 			'appearance' => __( 'Appearance', 'wp-ai-advisor' ),
@@ -170,6 +171,9 @@ class WP_AI_Advisor_Admin {
 			array( 'system_prompt', __( 'System prompt', 'wp-ai-advisor' ), 'render_system_prompt', 'grounding' ),
 			array( 'top_k', __( 'Context passages', 'wp-ai-advisor' ), 'render_top_k', 'grounding' ),
 			array( 'min_score', __( 'Relevance threshold', 'wp-ai-advisor' ), 'render_min_score', 'grounding' ),
+
+			array( 'price_field', __( 'Price range field', 'wp-ai-advisor' ), 'render_price_field', 'page' ),
+			array( 'context_suggestions', __( 'Suggested questions on a page', 'wp-ai-advisor' ), 'render_context_suggestions', 'page' ),
 
 			array( 'enable_calculator', __( 'Work out estimates', 'wp-ai-advisor' ), 'render_enable_calculator', 'estimates' ),
 			array( 'assumptions', __( 'Assumptions', 'wp-ai-advisor' ), 'render_assumptions', 'estimates' ),
@@ -234,9 +238,10 @@ class WP_AI_Advisor_Admin {
 				<p>
 					<?php
 					printf(
-						/* translators: %s: shortcode example. */
-						esc_html__( 'Place the advisor on any page with %s.', 'wp-ai-advisor' ),
-						'<code>[ai_advisor]</code>'
+						/* translators: 1: plain shortcode, 2: shortcode for a product page. */
+						esc_html__( 'Place the advisor on any page with %1$s. On a product or post template use %2$s, and it will answer about whatever the visitor is looking at.', 'wp-ai-advisor' ),
+						'<code>[ai_advisor]</code>',
+						'<code>[ai_advisor layout="compact"]</code>'
 					);
 					?>
 				</p>
@@ -840,6 +845,89 @@ class WP_AI_Advisor_Admin {
 	public function render_min_score() {
 		$this->text_field( 'min_score', 'number', 'small-text', array( 'min' => '0', 'max' => '1', 'step' => '0.05' ) );
 		$this->description( __( 'Passages scoring below this are ignored. Raise it if answers drift, lower it if the advisor refuses too often.', 'wp-ai-advisor' ) );
+	}
+
+	/**
+	 * Price range custom field name.
+	 *
+	 * @return void
+	 */
+	public function render_price_field() {
+		$this->text_field( 'price_field', 'text', 'regular-text', array( 'placeholder' => 'price_range' ) );
+
+		$this->description( __( 'Name of the custom field holding a price range as text, such as an ACF field. Read live from the page the visitor is on, so edits apply straight away. Leave blank to ignore it.', 'wp-ai-advisor' ) );
+
+		$sample = $this->sample_price_range();
+
+		if ( $sample ) {
+			printf(
+				'<p class="description"><strong>%s</strong> %s</p>',
+				esc_html__( 'Found:', 'wp-ai-advisor' ),
+				esc_html( $sample )
+			);
+		} elseif ( trim( (string) WP_AI_Advisor_Settings::get( 'price_field' ) ) ) {
+			printf(
+				'<p class="description">%s</p>',
+				esc_html__( 'No published post carries a value in this field yet. Check the field name if you have already filled one in.', 'wp-ai-advisor' )
+			);
+		}
+	}
+
+	/**
+	 * An example of the configured price field in use, to confirm the name is right.
+	 *
+	 * @return string
+	 */
+	private function sample_price_range() {
+		$field = trim( (string) WP_AI_Advisor_Settings::get( 'price_field' ) );
+
+		if ( '' === $field ) {
+			return '';
+		}
+
+		$found = get_posts(
+			array(
+				'post_type'        => 'any',
+				'post_status'      => 'publish',
+				'posts_per_page'   => 1,
+				'meta_key'         => $field, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'fields'           => 'ids',
+				'suppress_filters' => true,
+			)
+		);
+
+		if ( empty( $found ) ) {
+			return '';
+		}
+
+		$post_id = (int) $found[0];
+		$value   = WP_AI_Advisor_Page_Context::price_range( $post_id );
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: 1: post title, 2: the field value found on it. */
+			__( '%1$s — "%2$s"', 'wp-ai-advisor' ),
+			get_the_title( $post_id ),
+			$value
+		);
+	}
+
+	/**
+	 * Suggested questions for a page-aware widget.
+	 *
+	 * @return void
+	 */
+	public function render_context_suggestions() {
+		printf(
+			'<textarea id="wp_ai_advisor_context_suggestions" name="%1$s" rows="4" class="large-text">%2$s</textarea>',
+			esc_attr( $this->name( 'context_suggestions' ) ),
+			esc_textarea( implode( "\n", (array) WP_AI_Advisor_Settings::get( 'context_suggestions' ) ) )
+		);
+
+		$this->description( __( 'One per line. Shown instead of the usual suggestions when the widget sits on a product or post. Leave blank for the defaults.', 'wp-ai-advisor' ) );
 	}
 
 	/**

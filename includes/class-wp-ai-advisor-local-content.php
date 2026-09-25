@@ -174,6 +174,12 @@ class WP_AI_Advisor_Local_Content {
 
 		$parts[] = WP_AI_Advisor_Text::to_text( $html );
 
+		$fields = WP_AI_Advisor_Page_Context::indexable_fields( $post->ID );
+
+		if ( $fields ) {
+			$parts[] = $fields;
+		}
+
 		$terms = $this->terms( $post );
 
 		if ( $terms ) {

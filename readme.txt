@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,8 @@ Features:
 * Fully translatable, with a Norwegian Bokmål translation included
 * Answers in the visitor's language, and prefers passages in that language
 * Polylang and WPML aware: every translation is indexed and tagged
+* Page-aware on product and post templates: answers about what the visitor is reading
+* Reads a price range from a custom field, such as an ACF field, live from the page
 * Works out cost estimates from your own prices, with the arithmetic done in PHP
 * Answers render Markdown: lists, bold and links instead of raw asterisks
 * Filters for the system prompt, retrieved context, and the outgoing request body
@@ -93,11 +95,21 @@ the arithmetic out in PHP rather than guessing, and calls the result an estimate
 price it needs is missing it says so instead of inventing one. Turn it off under
 Settings, AI Advisor, Estimates.
 
+= Can it answer about the product the visitor is looking at? =
+
+Yes. Use [ai_advisor layout="compact"] in a product template. The widget adopts that
+product, pins its content into every answer, and reads its price range field live.
+
 = Can it read scanned PDFs? =
 
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.6.0 =
+* The widget can now answer about the page it sits on, so "what is special about this one" works.
+* Added a compact layout for product pages and sidebars, with its own suggested questions.
+* Added a price range custom field, read live from the page and indexed with the post.
 
 = 0.5.0 =
 * The advisor can now work out estimates instead of refusing "what would this cost" questions.

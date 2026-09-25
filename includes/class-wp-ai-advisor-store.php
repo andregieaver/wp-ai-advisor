@@ -451,6 +451,96 @@ class WP_AI_Advisor_Store {
 	}
 
 	/**
+	 * Finds the indexed source covering a post.
+	 *
+	 * A post can be in the index twice over: imported locally (matched by ref)
+	 * or crawled (matched by permalink). Either will do.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array|null
+	 */
+	public static function find_source_for_post( $post_id ) {
+		global $wpdb;
+
+		$table = self::sources_table();
+
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE ref = %d AND type = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				(int) $post_id,
+				self::TYPE_LOCAL
+			),
+			ARRAY_A
+		);
+
+		if ( $row ) {
+			return $row;
+		}
+
+		$url = self::normalize_url( get_permalink( $post_id ) );
+
+		if ( ! $url ) {
+			return null;
+		}
+
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE url_hash = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				md5( $url )
+			),
+			ARRAY_A
+		);
+
+		return $row ? $row : null;
+	}
+
+	/**
+	 * The stored passages of one source, in order.
+	 *
+	 * @param int $source_id Source ID.
+	 * @param int $limit     Maximum passages.
+	 * @return array[] Each: content, title, url, language, links.
+	 */
+	public static function chunks_for_source( $source_id, $limit = 4 ) {
+		global $wpdb;
+
+		$sources = self::sources_table();
+		$chunks  = self::chunks_table();
+
+		$rows = (array) $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"SELECT c.content, s.title, s.url, s.language, s.links
+				 FROM {$chunks} c
+				 INNER JOIN {$sources} s ON s.id = c.source_id
+				 WHERE c.source_id = %d
+				 ORDER BY c.seq ASC
+				 LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				(int) $source_id,
+				max( 1, (int) $limit )
+			),
+			ARRAY_A
+		);
+
+		$out = array();
+
+		foreach ( $rows as $row ) {
+			$links = json_decode( (string) $row['links'], true );
+
+			$out[] = array(
+				'score'    => 1.0,
+				'content'  => $row['content'],
+				'title'    => $row['title'],
+				'url'      => $row['url'],
+				'language' => isset( $row['language'] ) ? $row['language'] : '',
+				'links'    => is_array( $links ) ? $links : array(),
+				'pinned'   => true,
+			);
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Records an attempt at processing a source and returns the new count.
 	 *
 	 * Written before the work starts, so a row that crashes the request - a

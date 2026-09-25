@@ -52,6 +52,7 @@ class WP_AI_Advisor_OpenAI_Client {
 	 * @param array  $context  Retrieved chunks: title, url, content.
 	 * @param array  $history  Prior turns: role, content.
 	 * @param string $language Language of the page the widget is on.
+	 * @param string $page     Facts about the page the widget is on.
 	 * @return array|WP_Error {
 	 *     @type string $answer    Reply text.
 	 *     @type bool   $grounded  Whether the answer came from the supplied context.
@@ -59,12 +60,16 @@ class WP_AI_Advisor_OpenAI_Client {
 	 *     @type array  $links     Navigation links: label, url.
 	 * }
 	 */
-	public function answer( $question, array $context, array $history = array(), $language = '' ) {
+	public function answer( $question, array $context, array $history = array(), $language = '', $page = '' ) {
 		$settings = WP_AI_Advisor_Settings::all();
 
 		$system = WP_AI_Advisor_Settings::system_prompt()
 			. "\n\n" . WP_AI_Advisor_Language::reply_instruction( $language )
 			. "\n\n" . $this->grounding_rules( (bool) $settings['strict_mode'] );
+
+		if ( '' !== $page ) {
+			$system .= "\n\n" . $this->page_rules();
+		}
 
 		if ( ! empty( $settings['enable_calculator'] ) ) {
 			$system .= "\n\n" . $this->estimate_rules();
@@ -78,7 +83,7 @@ class WP_AI_Advisor_OpenAI_Client {
 
 		$messages[] = array(
 			'role'    => 'user',
-			'content' => $this->render_user_turn( $question, $context ),
+			'content' => $this->render_user_turn( $question, $context, $page ),
 		);
 
 		$calculations = array();
@@ -450,24 +455,44 @@ class WP_AI_Advisor_OpenAI_Client {
 	 * @param array  $context  Retrieved chunks.
 	 * @return string
 	 */
-	private function render_user_turn( $question, array $context ) {
+	private function render_user_turn( $question, array $context, $page = '' ) {
+		$prefix = '' !== $page ? "CURRENT PAGE:\n" . $page . "\n\n" : '';
+
 		if ( empty( $context ) ) {
-			return "SITE CONTENT:\n(none found)\n\nQUESTION:\n" . $question;
+			return $prefix . "SITE CONTENT:\n(none found)\n\nQUESTION:\n" . $question;
 		}
 
 		$blocks = array();
 
 		foreach ( $context as $chunk ) {
 			$blocks[] = sprintf(
-				"[%s]\nURL: %s\nLANGUAGE: %s\n%s",
+				"[%s]%s\nURL: %s\nLANGUAGE: %s\n%s",
 				isset( $chunk['title'] ) ? $chunk['title'] : '',
+				! empty( $chunk['pinned'] ) ? ' (the page the visitor is on)' : '',
 				isset( $chunk['url'] ) ? $chunk['url'] : '',
 				! empty( $chunk['language'] ) ? $chunk['language'] : 'unknown',
 				isset( $chunk['content'] ) ? $chunk['content'] : ''
 			);
 		}
 
-		return "SITE CONTENT:\n" . implode( "\n\n---\n\n", $blocks ) . "\n\nQUESTION:\n" . $question;
+		return $prefix . "SITE CONTENT:\n" . implode( "\n\n---\n\n", $blocks ) . "\n\nQUESTION:\n" . $question;
+	}
+
+	/**
+	 * Rules for a widget sitting on a specific page.
+	 *
+	 * @return string
+	 */
+	private function page_rules() {
+		$rules = array(
+			__( 'The visitor is reading the page described under CURRENT PAGE. Words like "this", "it", "denne" or "dette" mean that page unless they clearly mean something else.', 'wp-ai-advisor' ),
+			__( 'Answer about that page by default. Bring in other excerpts only to compare with it or when the question is plainly about something else.', 'wp-ai-advisor' ),
+			__( 'The CURRENT PAGE facts are current and authoritative: they are read live from the site, so prefer them over any figure in an excerpt that disagrees.', 'wp-ai-advisor' ),
+			__( 'Where a price range is given, quote it as a range in the words the shop used. Do not present one end of it as the price, and do not convert or recalculate it.', 'wp-ai-advisor' ),
+			__( 'A question answered from the CURRENT PAGE facts is grounded: set "grounded" to true.', 'wp-ai-advisor' ),
+		);
+
+		return "CURRENT PAGE RULES:\n- " . implode( "\n- ", $rules );
 	}
 
 	/**

@@ -247,6 +247,45 @@ check( 'reply_language accepts page', WP_AI_Advisor_Settings::sanitize( array( '
 check( 'reply_language rejects junk', WP_AI_Advisor_Settings::sanitize( array( 'reply_language' => '!!' ) )['reply_language'], 'auto' );
 $GLOBALS['wp_ai_advisor_test_locale'] = 'en_US';
 
+// --- Page context ----------------------------------------------------------
+wp_ai_advisor_test_post( 10, array( 'post_title' => 'JURA WE6' ) );
+wp_ai_advisor_test_post( 11, array( 'post_status' => 'draft' ) );
+wp_ai_advisor_test_post( 12, array( 'post_status' => 'private' ) );
+wp_ai_advisor_test_post( 13, array( 'post_password' => 'hemmelig' ) );
+wp_ai_advisor_test_post( 14, array( 'post_type' => 'secret' ) );
+
+check( 'published public post is accepted', WP_AI_Advisor_Page_Context::validate( 10 ), 10 );
+check( 'draft is rejected', WP_AI_Advisor_Page_Context::validate( 11 ), 0 );
+check( 'private post is rejected', WP_AI_Advisor_Page_Context::validate( 12 ), 0 );
+check( 'password-protected post is rejected', WP_AI_Advisor_Page_Context::validate( 13 ), 0 );
+check( 'non-public post type is rejected', WP_AI_Advisor_Page_Context::validate( 14 ), 0 );
+check( 'unknown post is rejected', WP_AI_Advisor_Page_Context::validate( 9999 ), 0 );
+check( 'zero is rejected', WP_AI_Advisor_Page_Context::validate( 0 ), 0 );
+check( 'negative id is rejected', WP_AI_Advisor_Page_Context::validate( -10 ), 0 );
+check( 'non-numeric id is rejected', WP_AI_Advisor_Page_Context::validate( 'abc' ), 0 );
+
+$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'price_range' => ' 12 900 – 18 400 kr ' );
+
+check(
+	'price range is read from the configured field',
+	WP_AI_Advisor_Page_Context::price_range( 10 ),
+	'12 900 – 18 400 kr'
+);
+check( 'missing price range is empty', WP_AI_Advisor_Page_Context::price_range( 11 ), '' );
+
+$rendered = WP_AI_Advisor_Page_Context::render( 10 );
+check( 'page block names the post', false !== strpos( $rendered, 'JURA WE6' ), true );
+check( 'page block carries the permalink', false !== strpos( $rendered, 'https://example.test/produkt/10' ), true );
+check( 'page block states the price range', false !== strpos( $rendered, '12 900 – 18 400 kr' ), true );
+check( 'price range is offered for indexing', false !== strpos( WP_AI_Advisor_Page_Context::indexable_fields( 10 ), '12 900' ), true );
+check( 'nothing is indexed without a price range', WP_AI_Advisor_Page_Context::indexable_fields( 11 ), '' );
+check( 'unknown post renders nothing', WP_AI_Advisor_Page_Context::render( 9999 ), '' );
+
+// An HTML-bearing field value must not reach the prompt as markup.
+$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'price_range' => '<b>999</b> kr' );
+check( 'markup is stripped from field values', WP_AI_Advisor_Page_Context::price_range( 10 ), '999 kr' );
+$GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'price_range' => '12 900 – 18 400 kr' );
+
 // --- Translation coverage --------------------------------------------------
 $pot = dirname( __DIR__ ) . '/languages/wp-ai-advisor.pot';
 $mo  = dirname( __DIR__ ) . '/languages/wp-ai-advisor-nb_NO.mo';

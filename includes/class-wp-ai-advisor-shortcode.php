@@ -86,6 +86,9 @@ class WP_AI_Advisor_Shortcode {
 				'theme'       => 'dark',
 				'open'        => 'no',
 				'lang'        => '',
+				'context'     => 'auto',
+				'layout'      => 'full',
+				'suggestions' => '',
 			),
 			$atts,
 			self::TAG
@@ -100,8 +103,31 @@ class WP_AI_Advisor_Shortcode {
 		$language = WP_AI_Advisor_Language::normalize( $atts['lang'] );
 		$language = $language ? $language : WP_AI_Advisor_Language::current();
 
-		$suggestions = WP_AI_Advisor_Settings::suggestions();
-		$widget_id   = wp_unique_id( 'aiadv-' );
+		// On a singular view the widget adopts that page as its subject, so a
+		// question about "this one" has something to resolve to.
+		$post_id = 0;
+
+		if ( 'none' !== $atts['context'] ) {
+			$post_id = 'auto' === $atts['context']
+				? ( is_singular() ? get_queried_object_id() : 0 )
+				: absint( $atts['context'] );
+
+			$post_id = WP_AI_Advisor_Page_Context::validate( $post_id );
+		}
+
+		$compact = 'compact' === $atts['layout'];
+
+		if ( '' !== trim( (string) $atts['suggestions'] ) ) {
+			$suggestions = array_values(
+				array_filter( array_map( 'trim', explode( '|', (string) $atts['suggestions'] ) ) )
+			);
+		} elseif ( $post_id ) {
+			$suggestions = WP_AI_Advisor_Settings::context_suggestions();
+		} else {
+			$suggestions = WP_AI_Advisor_Settings::suggestions();
+		}
+
+		$widget_id = wp_unique_id( 'aiadv-' );
 
 		wp_enqueue_style( self::HANDLE );
 		wp_enqueue_script( self::HANDLE );
@@ -109,10 +135,11 @@ class WP_AI_Advisor_Shortcode {
 		ob_start();
 		?>
 		<div
-			class="aiadv aiadv--<?php echo esc_attr( $theme ); ?><?php echo $open ? ' is-open' : ''; ?>"
+			class="aiadv aiadv--<?php echo esc_attr( $theme ); ?><?php echo $compact ? ' aiadv--compact' : ''; ?><?php echo $open ? ' is-open' : ''; ?>"
 			id="<?php echo esc_attr( $widget_id ); ?>"
 			lang="<?php echo esc_attr( $language ); ?>"
 			data-language="<?php echo esc_attr( $language ); ?>"
+			data-post-id="<?php echo (int) $post_id; ?>"
 			style="--aiadv-accent: <?php echo esc_attr( $settings['accent'] ); ?>;"
 		>
 			<div class="aiadv__card">

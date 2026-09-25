@@ -42,6 +42,10 @@ class WP_AI_Advisor_Settings {
 			// Language.
 			'reply_language'   => 'auto',
 
+			// Page context.
+			'price_field'       => 'price_range',
+			'context_suggestions' => array(),
+
 			// Estimates.
 			'enable_calculator' => true,
 			'assumptions'       => '',
@@ -221,6 +225,26 @@ class WP_AI_Advisor_Settings {
 		 * @param string $assumptions One per line.
 		 */
 		return (string) apply_filters( 'wp_ai_advisor_assumptions', $assumptions );
+	}
+
+	/**
+	 * Suggested questions for a widget sitting on a specific page.
+	 *
+	 * @return string[]
+	 */
+	public static function context_suggestions() {
+		$suggestions = (array) self::get( 'context_suggestions', array() );
+		$suggestions = array_values( array_filter( array_map( 'trim', $suggestions ) ) );
+
+		if ( empty( $suggestions ) ) {
+			$suggestions = array(
+				__( 'What makes this one special?', 'wp-ai-advisor' ),
+				__( 'What does this cost?', 'wp-ai-advisor' ),
+				__( 'Who is this a good fit for?', 'wp-ai-advisor' ),
+			);
+		}
+
+		return array_slice( $suggestions, 0, 6 );
 	}
 
 	/**
@@ -406,6 +430,20 @@ class WP_AI_Advisor_Settings {
 		if ( isset( $input['accent'] ) ) {
 			$accent           = sanitize_hex_color( $input['accent'] );
 			$output['accent'] = $accent ? $accent : $defaults['accent'];
+		}
+
+		if ( isset( $input['price_field'] ) ) {
+			$output['price_field'] = sanitize_key( $input['price_field'] );
+		}
+
+		if ( isset( $input['context_suggestions'] ) ) {
+			$lines = is_array( $input['context_suggestions'] )
+				? $input['context_suggestions']
+				: explode( "\n", (string) $input['context_suggestions'] );
+
+			$lines = array_values( array_filter( array_map( 'trim', array_map( 'sanitize_text_field', $lines ) ) ) );
+
+			$output['context_suggestions'] = array_slice( $lines, 0, 6 );
 		}
 
 		if ( isset( $input['suggestions'] ) ) {

@@ -47,6 +47,11 @@ class WP_AI_Advisor_REST_Controller {
 							'required' => false,
 							'default'  => '',
 						),
+						'post_id'  => array(
+							'type'     => 'integer',
+							'required' => false,
+							'default'  => 0,
+						),
 					),
 				),
 			)
@@ -254,6 +259,16 @@ class WP_AI_Advisor_REST_Controller {
 			? array()
 			: WP_AI_Advisor_Store::search( $vectors[0], (int) $settings['top_k'], (float) $settings['min_score'], $language );
 
+		// The page the widget sits on is always in play, whatever the question
+		// scored: "denne kaffemaskinen" has nothing for semantic search to match.
+		$post_id = WP_AI_Advisor_Page_Context::validate( $request->get_param( 'post_id' ) );
+		$page    = '';
+
+		if ( $post_id ) {
+			$context = $this->pin_current_page( $post_id, $context );
+			$page    = WP_AI_Advisor_Page_Context::render( $post_id );
+		}
+
 		/**
 		 * Filters the retrieved context before it reaches the model.
 		 *
@@ -263,12 +278,13 @@ class WP_AI_Advisor_REST_Controller {
 		 */
 		$context = apply_filters( 'wp_ai_advisor_context', $context, $question, $language );
 
-		// Nothing relevant indexed: refuse without spending a completion.
-		if ( empty( $context ) && $strict ) {
+		// Nothing relevant indexed: refuse without spending a completion. A page
+		// the visitor is standing on counts as relevant even when nothing scored.
+		if ( empty( $context ) && '' === $page && $strict ) {
 			return rest_ensure_response( $this->refusal_payload() );
 		}
 
-		$result = $client->answer( $question, $context, $history, $language );
+		$result = $client->answer( $question, $context, $history, $language, $page );
 
 		if ( is_wp_error( $result ) ) {
 			$this->log_error( $result );
@@ -300,6 +316,47 @@ class WP_AI_Advisor_REST_Controller {
 				'calculations' => isset( $result['calculations'] ) ? $result['calculations'] : array(),
 			)
 		);
+	}
+
+	/**
+	 * Puts the current page's own passages at the front of the context.
+	 *
+	 * @param int   $post_id Post being viewed.
+	 * @param array $context Retrieved context.
+	 * @return array
+	 */
+	private function pin_current_page( $post_id, array $context ) {
+		$source = WP_AI_Advisor_Store::find_source_for_post( $post_id );
+
+		if ( ! $source ) {
+			return $context;
+		}
+
+		$pinned = WP_AI_Advisor_Store::chunks_for_source(
+			(int) $source['id'],
+			(int) apply_filters( 'wp_ai_advisor_pinned_passages', 3, $post_id )
+		);
+
+		if ( empty( $pinned ) ) {
+			return $context;
+		}
+
+		// Drop semantic hits that repeat a pinned passage.
+		$seen = array();
+
+		foreach ( $pinned as $chunk ) {
+			$seen[ md5( $chunk['content'] ) ] = true;
+		}
+
+		foreach ( $context as $chunk ) {
+			if ( isset( $seen[ md5( $chunk['content'] ) ] ) ) {
+				continue;
+			}
+
+			$pinned[] = $chunk;
+		}
+
+		return $pinned;
 	}
 
 	/**

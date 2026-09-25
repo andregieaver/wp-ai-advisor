@@ -54,6 +54,43 @@ The constant wins over the stored setting, and the admin field becomes read-only
 
 The container is fluid: it fills its parent up to `56rem`, drops from two columns to one below `48em`, and tightens its padding and controls below `30em`. Colours come from CSS custom properties on `.aiadv`, so a theme can override them without touching the stylesheet.
 
+## Page-aware widgets
+
+Drop the widget on a product template and it answers about the product the visitor is reading:
+
+```
+[ai_advisor layout="compact"]
+```
+
+"Hva er spesielt med denne kaffemaskinen?" has nothing for semantic search to match — the pronoun carries no meaning. So context is supplied rather than inferred:
+
+- The widget reports the post it sits on. The endpoint re-validates that ID server-side and accepts only published posts of public types, so a widget cannot be pointed at a draft.
+- That post's own indexed passages are **pinned** to the front of the context, whatever the question scored, and duplicate semantic hits are dropped.
+- Its live field values are stated in the prompt as current and authoritative, so an edit applies immediately without re-indexing.
+- The model is told that "this", "denne" and "dette" mean that page, and to answer about it by default.
+
+A page-aware widget also gets its own suggested questions, and a question answered from the page's facts counts as grounded — so a product question no longer falls through to the off-topic reply.
+
+| Attribute | Default | Description |
+| --- | --- | --- |
+| `context` | `auto` | `auto` adopts the current post on a singular view. `none` disables it. A post ID pins a specific page. |
+| `layout` | `full` | `compact` is smaller, ranged left, without the hero heading — for a sidebar or product page. |
+| `suggestions` | from settings | Inline overrides, separated by `\|`. |
+
+### Price range field
+
+Set **Price range field** under **Settings → AI Advisor → Page context** to the name of a custom field holding a price range as text — an ACF text field works as-is, since ACF stores plain text under the field name. The default is `price_range`.
+
+When the field holds a value it is:
+
+- **stated live** in the prompt for the page the visitor is on, so edits in the product editor apply immediately;
+- **indexed** with the post, so a price question works from anywhere on the site (needs a re-import to pick up);
+- **quoted as a range**, in the shop's own words. The model is told not to present one end as the price and not to recalculate it — which also keeps it out of the estimate calculator's hands.
+
+The settings screen shows a live example of the field it found, so a wrong field name is obvious before you rely on it.
+
+Use the `wp_ai_advisor_page_facts` filter to expose more fields — stock, lead time, SKU.
+
 ## Estimates
 
 Asked "what would this cost for 50 employees?", the advisor works the figure out rather than refusing — under constraints that keep it honest:
@@ -167,7 +204,7 @@ PDF text extraction is best-effort and built in — it reads Flate-compressed an
 | `/wp-json/wp-ai-advisor/v1/documents` | POST | `manage_options` |
 | `/wp-json/wp-ai-advisor/v1/sources/delete`, `/clear`, `/test` | POST | `manage_options` |
 
-All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, history, language}` and returns:
+All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, history, language, post_id}` and returns:
 
 ```json
 {
@@ -194,6 +231,8 @@ All routes require a valid `X-WP-Nonce` header. `POST /ask` takes `{question, hi
 | `wp_ai_advisor_allowed_extensions` | filter | Change which document types may be uploaded. |
 | `wp_ai_advisor_local_post_ids` | filter | Change which posts local mode indexes. |
 | `wp_ai_advisor_assumptions` | filter | Change the figures offered for estimates. |
+| `wp_ai_advisor_page_facts` | filter | Add fields to the current-page block. |
+| `wp_ai_advisor_pinned_passages` | filter | How many of the page's own passages are pinned. |
 | `wp_ai_advisor_answered` | action | Fires after a successful answer, with question, result and context. |
 
 ## Data
@@ -210,11 +249,11 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 ## Tests
 
 ```bash
-php tests/logic-test.php     # 94 checks
+php tests/logic-test.php     # 112 checks
 node tests/markdown-test.js  # 19 checks
 ```
 
-The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 
