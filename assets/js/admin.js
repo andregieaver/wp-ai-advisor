@@ -369,7 +369,80 @@
 		}
 	}
 
+	/**
+	 * Repeatable category question sets.
+	 *
+	 * Rows are indexed by position in the field name, so a removed row would
+	 * leave a gap; the indexes are rewritten after every change rather than
+	 * relying on PHP to tolerate a sparse array.
+	 */
+	function reindexSets() {
+		var container = byId( 'aiadv-sets' );
+
+		if ( ! container ) {
+			return;
+		}
+
+		Array.prototype.forEach.call(
+			container.querySelectorAll( '.aiadv-admin__set' ),
+			function ( row, index ) {
+				Array.prototype.forEach.call(
+					row.querySelectorAll( '[name]' ),
+					function ( field ) {
+						field.name = field.name.replace( /\[suggestion_sets\]\[[^\]]*\]/, '[suggestion_sets][' + index + ']' );
+					}
+				);
+			}
+		);
+	}
+
+	function bindSetRemoval( row ) {
+		var remove = row.querySelector( '.aiadv-admin__remove-set' );
+
+		if ( remove ) {
+			remove.addEventListener( 'click', function () {
+				row.parentNode.removeChild( row );
+				reindexSets();
+			} );
+		}
+	}
+
+	function setupSets() {
+		var container = byId( 'aiadv-sets' );
+		var template = byId( 'aiadv-set-template' );
+		var add = byId( 'aiadv-add-set' );
+
+		if ( ! container ) {
+			return;
+		}
+
+		Array.prototype.forEach.call( container.querySelectorAll( '.aiadv-admin__set' ), bindSetRemoval );
+
+		if ( ! add || ! template ) {
+			return;
+		}
+
+		add.addEventListener( 'click', function () {
+			var holder = document.createElement( 'div' );
+
+			holder.innerHTML = template.innerHTML.replace( /__INDEX__/g, String( Date.now() ) );
+
+			var row = holder.querySelector( '.aiadv-admin__set' );
+
+			if ( ! row ) {
+				return;
+			}
+
+			container.appendChild( row );
+			bindSetRemoval( row );
+			reindexSets();
+			row.querySelector( 'input' ).focus();
+		} );
+	}
+
 	document.addEventListener( 'DOMContentLoaded', function () {
+		setupSets();
+
 		bind( 'aiadv-build', build );
 
 		bind( 'aiadv-crawl', function () {

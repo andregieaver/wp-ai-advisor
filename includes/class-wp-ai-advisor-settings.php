@@ -51,6 +51,7 @@ class WP_AI_Advisor_Settings {
 			// Page context.
 			'price_field'       => 'hvor_mye_koster_det',
 			'context_suggestions' => array(),
+			'suggestion_sets'   => array(),
 
 			// Estimates.
 			'enable_calculator' => true,
@@ -234,6 +235,73 @@ class WP_AI_Advisor_Settings {
 	}
 
 	/**
+	 * Sanitises the repeatable question sets from the admin form.
+	 *
+	 * @param array $input Raw rows.
+	 * @return array[]
+	 */
+	private static function sanitize_sets( array $input ) {
+		$clean = array();
+
+		foreach ( $input as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+
+			$questions = isset( $row['questions'] ) ? $row['questions'] : '';
+			$questions = is_array( $questions ) ? $questions : preg_split( '/\r\n|\r|\n/', (string) $questions );
+			$questions = array_map( 'sanitize_text_field', (array) $questions );
+			$questions = array_values( array_filter( array_map( 'trim', $questions ) ) );
+
+			// A row with no questions is an empty row, not a set.
+			if ( empty( $questions ) ) {
+				continue;
+			}
+
+			$terms = self::clean_term_ids( isset( $row['terms'] ) ? (array) $row['terms'] : array() );
+
+			$clean[] = array(
+				'label'     => isset( $row['label'] ) ? sanitize_text_field( $row['label'] ) : '',
+				'terms'     => $terms,
+				'questions' => array_slice( $questions, 0, 6 ),
+			);
+
+			if ( count( $clean ) >= 20 ) {
+				break;
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Keeps only usable term IDs.
+	 *
+	 * Not absint(): folding -3 into 3 would silently bind a set to whichever
+	 * category happens to hold that ID.
+	 *
+	 * @param array $terms Raw term IDs.
+	 * @return int[]
+	 */
+	private static function clean_term_ids( array $terms ) {
+		$clean = array();
+
+		foreach ( $terms as $term ) {
+			if ( ! is_numeric( $term ) ) {
+				continue;
+			}
+
+			$term = (int) $term;
+
+			if ( $term > 0 ) {
+				$clean[] = $term;
+			}
+		}
+
+		return array_values( array_unique( $clean ) );
+	}
+
+	/**
 	 * Rewrites stored settings whose defaults have moved.
 	 *
 	 * A default only applies to a site that has never saved; once the options row
@@ -257,6 +325,66 @@ class WP_AI_Advisor_Settings {
 		}
 
 		update_option( self::SETTINGS_VERSION_KEY, self::SETTINGS_VERSION );
+	}
+
+	/**
+	 * Category-specific question sets, normalised.
+	 *
+	 * Each set is {label, terms, questions}. Order is meaningful: the first set
+	 * matching the page wins, so a narrow set belongs above a broad one.
+	 *
+	 * @return array[]
+	 */
+	public static function suggestion_sets() {
+		$sets  = (array) self::get( 'suggestion_sets', array() );
+		$clean = array();
+
+		foreach ( $sets as $set ) {
+			if ( ! is_array( $set ) ) {
+				continue;
+			}
+
+			$questions = isset( $set['questions'] ) ? (array) $set['questions'] : array();
+			$questions = array_values( array_filter( array_map( 'trim', $questions ) ) );
+
+			if ( empty( $questions ) ) {
+				continue;
+			}
+
+			$clean[] = array(
+				'label'     => isset( $set['label'] ) ? (string) $set['label'] : '',
+				'terms'     => self::clean_term_ids( isset( $set['terms'] ) ? (array) $set['terms'] : array() ),
+				'questions' => array_slice( $questions, 0, 6 ),
+			);
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * The questions for the first set matching any of these terms.
+	 *
+	 * @param int[] $term_ids Term IDs of the page, including ancestors.
+	 * @return string[] Empty when no set matches.
+	 */
+	public static function suggestions_for_terms( array $term_ids ) {
+		$term_ids = array_values( array_filter( array_map( 'absint', $term_ids ) ) );
+
+		if ( empty( $term_ids ) ) {
+			return array();
+		}
+
+		foreach ( self::suggestion_sets() as $set ) {
+			if ( empty( $set['terms'] ) ) {
+				continue;
+			}
+
+			if ( array_intersect( $set['terms'], $term_ids ) ) {
+				return $set['questions'];
+			}
+		}
+
+		return array();
 	}
 
 	/**
@@ -478,6 +606,10 @@ class WP_AI_Advisor_Settings {
 			$lines = array_values( array_filter( array_map( 'trim', array_map( 'sanitize_text_field', $lines ) ) ) );
 
 			$output['context_suggestions'] = array_slice( $lines, 0, 6 );
+		}
+
+		if ( isset( $input['suggestion_sets'] ) ) {
+			$output['suggestion_sets'] = self::sanitize_sets( (array) $input['suggestion_sets'] );
 		}
 
 		if ( isset( $input['suggestions'] ) ) {

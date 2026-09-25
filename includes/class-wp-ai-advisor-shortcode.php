@@ -66,6 +66,32 @@ class WP_AI_Advisor_Shortcode {
 	}
 
 	/**
+	 * Picks the question set to show, most specific first.
+	 *
+	 * Inline attribute, then a category set matching the page, then the general
+	 * page set, then the site-wide set.
+	 *
+	 * @param string $inline  Pipe-separated questions from the shortcode.
+	 * @param int    $post_id Post the widget is on, or 0.
+	 * @return string[]
+	 */
+	private function suggestions_for( $inline, $post_id ) {
+		if ( '' !== trim( (string) $inline ) ) {
+			return array_values( array_filter( array_map( 'trim', explode( '|', (string) $inline ) ) ) );
+		}
+
+		if ( ! $post_id ) {
+			return WP_AI_Advisor_Settings::suggestions();
+		}
+
+		$matched = WP_AI_Advisor_Settings::suggestions_for_terms(
+			WP_AI_Advisor_Page_Context::term_ids( $post_id )
+		);
+
+		return $matched ? $matched : WP_AI_Advisor_Settings::context_suggestions();
+	}
+
+	/**
 	 * Renders the widget.
 	 *
 	 * @param array $atts Shortcode attributes.
@@ -117,15 +143,7 @@ class WP_AI_Advisor_Shortcode {
 
 		$compact = 'compact' === $atts['layout'];
 
-		if ( '' !== trim( (string) $atts['suggestions'] ) ) {
-			$suggestions = array_values(
-				array_filter( array_map( 'trim', explode( '|', (string) $atts['suggestions'] ) ) )
-			);
-		} elseif ( $post_id ) {
-			$suggestions = WP_AI_Advisor_Settings::context_suggestions();
-		} else {
-			$suggestions = WP_AI_Advisor_Settings::suggestions();
-		}
+		$suggestions = $this->suggestions_for( $atts['suggestions'], $post_id );
 
 		$widget_id = wp_unique_id( 'aiadv-' );
 

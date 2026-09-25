@@ -303,6 +303,61 @@ check(
 );
 $GLOBALS['wp_ai_advisor_test_meta'][10] = array( 'hvor_mye_koster_det' => '12 900 – 18 400 kr' );
 
+// --- Question sets ---------------------------------------------------------
+$GLOBALS['wp_ai_advisor_test_options']['wp_ai_advisor_settings'] = array(
+	'suggestion_sets' => array(
+		array( 'label' => 'Espresso', 'terms' => array( 30 ), 'questions' => array( 'Hvor stor er tanken?' ) ),
+		array( 'label' => 'Kaffemaskiner', 'terms' => array( 20 ), 'questions' => array( 'Hva koster denne?', 'Hvem passer den for?' ) ),
+		array( 'label' => 'Tom', 'terms' => array( 40 ), 'questions' => array() ),
+		array( 'label' => 'Uten kategori', 'terms' => array(), 'questions' => array( 'Skal aldri treffe' ) ),
+	),
+);
+
+check( 'sets without questions are dropped', count( WP_AI_Advisor_Settings::suggestion_sets() ), 3 );
+check(
+	'a matching set is used',
+	WP_AI_Advisor_Settings::suggestions_for_terms( array( 20 ) ),
+	array( 'Hva koster denne?', 'Hvem passer den for?' )
+);
+check(
+	'the first matching set wins',
+	WP_AI_Advisor_Settings::suggestions_for_terms( array( 20, 30 ) ),
+	array( 'Hvor stor er tanken?' )
+);
+check( 'no match returns nothing', WP_AI_Advisor_Settings::suggestions_for_terms( array( 99 ) ), array() );
+check( 'no terms returns nothing', WP_AI_Advisor_Settings::suggestions_for_terms( array() ), array() );
+check( 'a set with no categories never matches', WP_AI_Advisor_Settings::suggestions_for_terms( array( 0 ) ), array() );
+
+// A product filed only under a child category still matches a parent set.
+$GLOBALS['wp_ai_advisor_test_taxonomies'] = true;
+$GLOBALS['wp_ai_advisor_test_terms'][10]  = array( 21 );
+$GLOBALS['wp_ai_advisor_test_ancestors'][21] = array( 20 );
+
+check( 'term ids include ancestors', WP_AI_Advisor_Page_Context::term_ids( 10 ), array( 21, 20 ) );
+check(
+	'a child category inherits its parent set',
+	WP_AI_Advisor_Settings::suggestions_for_terms( WP_AI_Advisor_Page_Context::term_ids( 10 ) ),
+	array( 'Hva koster denne?', 'Hvem passer den for?' )
+);
+$GLOBALS['wp_ai_advisor_test_taxonomies'] = false;
+
+// Rows arriving from the admin form.
+$saved = WP_AI_Advisor_Settings::sanitize(
+	array(
+		'suggestion_sets' => array(
+			array( 'label' => ' Kaffe ', 'terms' => array( '20', 'x', '20', '-3' ), 'questions' => "  A  \n\n B \n" ),
+			array( 'label' => 'Blank', 'terms' => array( '21' ), 'questions' => "   \n  " ),
+		),
+	)
+);
+
+check( 'blank rows are not saved', count( $saved['suggestion_sets'] ), 1 );
+check( 'term ids are deduplicated, and junk dropped rather than folded', $saved['suggestion_sets'][0]['terms'], array( 20 ) );
+check( 'questions are split and trimmed', $saved['suggestion_sets'][0]['questions'], array( 'A', 'B' ) );
+check( 'labels are trimmed', $saved['suggestion_sets'][0]['label'], 'Kaffe' );
+
+$GLOBALS['wp_ai_advisor_test_options'] = array();
+
 // --- Settings migration ----------------------------------------------------
 // A default only applies to a site that has never saved, so a renamed default
 // has to be migrated or it silently stops matching anything.

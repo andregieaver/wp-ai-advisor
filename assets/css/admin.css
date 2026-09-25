@@ -65,3 +65,29 @@
 	width: 2.5rem;
 	vertical-align: middle;
 }
+
+.wp-ai-advisor-admin .aiadv-admin__set {
+	max-width: 42rem;
+	margin-bottom: 1rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__set p {
+	margin: 0 0 0.75rem;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__set p:last-child {
+	margin-bottom: 0;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__terms {
+	width: 100%;
+	max-width: 24rem;
+}
+
+.wp-ai-advisor-admin .aiadv-admin__remove-set {
+	color: #b32d2e;
+}

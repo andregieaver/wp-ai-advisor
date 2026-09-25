@@ -4,7 +4,7 @@ Tags: ai, openai, chatbot, assistant, multilingual
 Requires at least: 6.2
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.6.1
+Stable tag: 0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,7 @@ Features:
 * Fully translatable, with a Norwegian Bokmål translation included
 * Answers in the visitor's language, and prefers passages in that language
 * Polylang and WPML aware: every translation is indexed and tagged
+* Editable suggested questions, with extra sets per product category
 * Page-aware on product and post templates: answers about what the visitor is reading
 * Reads a price range from a custom field, such as an ACF field, live from the page
 * Works out cost estimates from your own prices, with the arithmetic done in PHP
@@ -95,6 +96,12 @@ the arithmetic out in PHP rather than guessing, and calls the result an estimate
 price it needs is missing it says so instead of inventing one. Turn it off under
 Settings, AI Advisor, Estimates.
 
+= Can different product categories show different questions? =
+
+Yes. Under Settings, AI Advisor, Suggested questions, add a category set, choose its
+categories and list the questions. Sets are checked from the top down, and a product in a
+sub-category inherits the parent's set.
+
 = Can it answer about the product the visitor is looking at? =
 
 Yes. Use [ai_advisor layout="compact"] in a product template. The widget adopts that
@@ -105,6 +112,11 @@ product, pins its content into every answer, and reads its price range field liv
 No. Those contain images rather than text. Run OCR first, or upload a .txt file.
 
 == Changelog ==
+
+= 0.7.0 =
+* Suggested questions now live in their own settings section.
+* Added repeatable category sets, so a coffee machine and a subscription can ask different things.
+* Sub-categories inherit a parent category's set.
 
 = 0.6.1 =
 * Default price range field is now hvor_mye_koster_det, migrated on sites that still hold the old default.

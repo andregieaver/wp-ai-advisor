@@ -69,7 +69,7 @@ Drop the widget on a product template and it answers about the product the visit
 - Its live field values are stated in the prompt as current and authoritative, so an edit applies immediately without re-indexing.
 - The model is told that "this", "denne" and "dette" mean that page, and to answer about it by default.
 
-A page-aware widget also gets its own suggested questions, and a question answered from the page's facts counts as grounded — so a product question no longer falls through to the off-topic reply.
+A page-aware widget also gets its own suggested questions (see below), and a question answered from the page's facts counts as grounded — so a product question no longer falls through to the off-topic reply.
 
 | Attribute | Default | Description |
 | --- | --- | --- |
@@ -92,6 +92,17 @@ When the field holds a value it is:
 The settings screen shows a live example of the field it found, so a wrong field name is obvious before you rely on it.
 
 Use the `wp_ai_advisor_page_facts` filter to expose more fields — stock, lead time, SKU.
+
+## Suggested questions
+
+The buttons shown before the visitor types anything, all editable under **Settings → AI Advisor → Suggested questions**. The most specific set that fits wins:
+
+1. **A `suggestions` shortcode attribute** — pipe-separated, for a one-off placement.
+2. **A category set** — one or more questions bound to chosen categories. Sets are checked from the top down, so put the narrow ones first. A product filed only under a child category still matches a set aimed at its parent, because term ancestors are included.
+3. **On a product or post** — the fallback for a page-aware widget no category set covers.
+4. **General questions** — everything else.
+
+Category sets are repeatable: name the set, pick its categories from any public taxonomy (`product_cat` included), and list up to six questions. A set with no questions is discarded rather than saved as an empty row.
 
 ## Estimates
 
@@ -170,7 +181,9 @@ Neither mode updates itself. Re-run a build after the site changes.
 - *Admin-only* — the widget renders for administrators only, **and** the REST endpoint refuses everyone else. Safe for testing on a live site.
 - *Questions per hour* — per visitor (user ID, or IP when logged out). Administrators are exempt.
 
-**Appearance** — eyebrow, heading, placeholder, suggested questions (one per line, up to six), a highlighted call-to-action button (label + URL), and an accent colour.
+**Suggested questions** — the general set, the product/post set, and repeatable category sets.
+
+**Appearance** — eyebrow, heading, placeholder, a highlighted call-to-action button (label + URL), and an accent colour.
 
 ## Knowledge base tab
 
@@ -251,11 +264,11 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 ## Tests
 
 ```bash
-php tests/logic-test.php     # 119 checks
+php tests/logic-test.php     # 131 checks
 node tests/markdown-test.js  # 19 checks
 ```
 
-The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 

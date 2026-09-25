@@ -137,16 +137,22 @@ class WP_AI_Advisor_Admin {
 			'grounding'  => __( 'Answering', 'wp-ai-advisor' ),
 			'estimates'  => __( 'Estimates', 'wp-ai-advisor' ),
 			'page'       => __( 'Page context', 'wp-ai-advisor' ),
+			'questions'  => __( 'Suggested questions', 'wp-ai-advisor' ),
 			'language'   => __( 'Language', 'wp-ai-advisor' ),
 			'access'     => __( 'Access', 'wp-ai-advisor' ),
 			'appearance' => __( 'Appearance', 'wp-ai-advisor' ),
+		);
+
+		$intros = array(
+			'api'       => array( $this, 'render_api_section' ),
+			'questions' => array( $this, 'render_questions_section' ),
 		);
 
 		foreach ( $sections as $id => $title ) {
 			add_settings_section(
 				'wp_ai_advisor_' . $id,
 				$title,
-				'api' === $id ? array( $this, 'render_api_section' ) : '__return_false',
+				isset( $intros[ $id ] ) ? $intros[ $id ] : '__return_false',
 				self::PAGE_SLUG
 			);
 		}
@@ -173,7 +179,6 @@ class WP_AI_Advisor_Admin {
 			array( 'min_score', __( 'Relevance threshold', 'wp-ai-advisor' ), 'render_min_score', 'grounding' ),
 
 			array( 'price_field', __( 'Price range field', 'wp-ai-advisor' ), 'render_price_field', 'page' ),
-			array( 'context_suggestions', __( 'Suggested questions on a page', 'wp-ai-advisor' ), 'render_context_suggestions', 'page' ),
 
 			array( 'enable_calculator', __( 'Work out estimates', 'wp-ai-advisor' ), 'render_enable_calculator', 'estimates' ),
 			array( 'assumptions', __( 'Assumptions', 'wp-ai-advisor' ), 'render_assumptions', 'estimates' ),
@@ -183,10 +188,13 @@ class WP_AI_Advisor_Admin {
 			array( 'admin_only', __( 'Admin-only', 'wp-ai-advisor' ), 'render_admin_only', 'access' ),
 			array( 'rate_limit', __( 'Questions per hour', 'wp-ai-advisor' ), 'render_rate_limit', 'access' ),
 
+			array( 'suggestions', __( 'General questions', 'wp-ai-advisor' ), 'render_suggestions', 'questions' ),
+			array( 'context_suggestions', __( 'On a product or post', 'wp-ai-advisor' ), 'render_context_suggestions', 'questions' ),
+			array( 'suggestion_sets', __( 'Category sets', 'wp-ai-advisor' ), 'render_suggestion_sets', 'questions' ),
+
 			array( 'eyebrow', __( 'Eyebrow', 'wp-ai-advisor' ), 'render_eyebrow', 'appearance' ),
 			array( 'heading', __( 'Heading', 'wp-ai-advisor' ), 'render_heading', 'appearance' ),
 			array( 'placeholder', __( 'Input placeholder', 'wp-ai-advisor' ), 'render_placeholder', 'appearance' ),
-			array( 'suggestions', __( 'Suggested questions', 'wp-ai-advisor' ), 'render_suggestions', 'appearance' ),
 			array( 'cta_label', __( 'Call to action', 'wp-ai-advisor' ), 'render_cta', 'appearance' ),
 			array( 'accent', __( 'Accent colour', 'wp-ai-advisor' ), 'render_accent', 'appearance' ),
 		);
@@ -848,6 +856,142 @@ class WP_AI_Advisor_Admin {
 	}
 
 	/**
+	 * Explains how the question sets are chosen.
+	 *
+	 * @return void
+	 */
+	public function render_questions_section() {
+		printf(
+			'<p>%s</p>',
+			esc_html__( 'These are the buttons shown before the visitor has typed anything. The most specific set that fits wins: a category set, then the product/post set, then the general set.', 'wp-ai-advisor' )
+		);
+	}
+
+	/**
+	 * Repeatable category-specific question sets.
+	 *
+	 * @return void
+	 */
+	public function render_suggestion_sets() {
+		$sets = WP_AI_Advisor_Settings::suggestion_sets();
+
+		echo '<div id="aiadv-sets" class="aiadv-admin__sets">';
+
+		foreach ( $sets as $index => $set ) {
+			$this->render_suggestion_set( $index, $set );
+		}
+
+		echo '</div>';
+
+		printf(
+			'<p><button type="button" class="button" id="aiadv-add-set">%s</button></p>',
+			esc_html__( 'Add a category set', 'wp-ai-advisor' )
+		);
+
+		$this->description( __( 'Shown when the widget sits on a product or post in one of the chosen categories, including sub-categories. Sets are checked from the top down, so put the most specific first.', 'wp-ai-advisor' ) );
+
+		// Blank row the script clones; __INDEX__ is replaced on insert.
+		echo '<script type="text/html" id="aiadv-set-template">';
+		$this->render_suggestion_set( '__INDEX__', array( 'label' => '', 'terms' => array(), 'questions' => array() ) );
+		echo '</script>';
+	}
+
+	/**
+	 * One question set row.
+	 *
+	 * @param int|string $index Row index, or the template placeholder.
+	 * @param array      $set   Set data.
+	 * @return void
+	 */
+	private function render_suggestion_set( $index, array $set ) {
+		$name = $this->name( 'suggestion_sets' ) . '[' . $index . ']';
+		?>
+		<div class="aiadv-admin__set">
+			<p>
+				<label>
+					<strong><?php esc_html_e( 'Name', 'wp-ai-advisor' ); ?></strong><br />
+					<input
+						type="text"
+						class="regular-text"
+						name="<?php echo esc_attr( $name . '[label]' ); ?>"
+						value="<?php echo esc_attr( $set['label'] ); ?>"
+						placeholder="<?php esc_attr_e( 'Coffee machines', 'wp-ai-advisor' ); ?>"
+					/>
+				</label>
+			</p>
+
+			<p>
+				<label>
+					<strong><?php esc_html_e( 'Categories', 'wp-ai-advisor' ); ?></strong><br />
+					<select name="<?php echo esc_attr( $name . '[terms][]' ); ?>" multiple size="6" class="aiadv-admin__terms">
+						<?php $this->render_term_options( (array) $set['terms'] ); ?>
+					</select>
+				</label>
+			</p>
+
+			<p>
+				<label>
+					<strong><?php esc_html_e( 'Questions', 'wp-ai-advisor' ); ?></strong><br />
+					<textarea
+						name="<?php echo esc_attr( $name . '[questions]' ); ?>"
+						rows="4"
+						class="large-text"
+						placeholder="<?php esc_attr_e( 'One per line, up to six', 'wp-ai-advisor' ); ?>"
+					><?php echo esc_textarea( implode( "\n", (array) $set['questions'] ) ); ?></textarea>
+				</label>
+			</p>
+
+			<p>
+				<button type="button" class="button-link aiadv-admin__remove-set">
+					<?php esc_html_e( 'Remove this set', 'wp-ai-advisor' ); ?>
+				</button>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Term options, grouped by taxonomy.
+	 *
+	 * @param int[] $selected Selected term IDs.
+	 * @return void
+	 */
+	private function render_term_options( array $selected ) {
+		$taxonomies = get_taxonomies( array( 'public' => true ), 'objects' );
+
+		foreach ( $taxonomies as $taxonomy ) {
+			if ( empty( $taxonomy->show_ui ) ) {
+				continue;
+			}
+
+			$terms = get_terms(
+				array(
+					'taxonomy'   => $taxonomy->name,
+					'hide_empty' => false,
+					'number'     => 200,
+				)
+			);
+
+			if ( is_wp_error( $terms ) || empty( $terms ) ) {
+				continue;
+			}
+
+			printf( '<optgroup label="%s">', esc_attr( $taxonomy->labels->name ) );
+
+			foreach ( $terms as $term ) {
+				printf(
+					'<option value="%1$d"%2$s>%3$s</option>',
+					(int) $term->term_id,
+					selected( in_array( (int) $term->term_id, $selected, true ), true, false ),
+					esc_html( $term->name )
+				);
+			}
+
+			echo '</optgroup>';
+		}
+	}
+
+	/**
 	 * Price range custom field name.
 	 *
 	 * @return void
@@ -927,7 +1071,7 @@ class WP_AI_Advisor_Admin {
 			esc_textarea( implode( "\n", (array) WP_AI_Advisor_Settings::get( 'context_suggestions' ) ) )
 		);
 
-		$this->description( __( 'One per line. Shown instead of the usual suggestions when the widget sits on a product or post. Leave blank for the defaults.', 'wp-ai-advisor' ) );
+		$this->description( __( 'One per line. Used when the widget sits on a product or post that no category set covers. Leave blank for the defaults.', 'wp-ai-advisor' ) );
 	}
 
 	/**
@@ -1067,7 +1211,7 @@ class WP_AI_Advisor_Admin {
 			esc_textarea( implode( "\n", (array) WP_AI_Advisor_Settings::get( 'suggestions' ) ) )
 		);
 
-		$this->description( __( 'One per line, up to six. Shown as buttons on the closed card.', 'wp-ai-advisor' ) );
+		$this->description( __( 'One per line, up to six. Used wherever nothing more specific applies.', 'wp-ai-advisor' ) );
 	}
 
 	/**

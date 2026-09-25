@@ -152,8 +152,19 @@ function get_permalink( $post ) {
 function get_post_meta( $id, $key = '', $single = false ) {
 	return isset( $GLOBALS['wp_ai_advisor_test_meta'][ $id ][ $key ] ) ? $GLOBALS['wp_ai_advisor_test_meta'][ $id ][ $key ] : '';
 }
-function get_object_taxonomies( $type, $output = 'names' ) { return array(); }
-function wp_get_post_terms( $id, $taxonomy, $args = array() ) { return array(); }
+function get_object_taxonomies( $type, $output = 'names' ) {
+	if ( empty( $GLOBALS['wp_ai_advisor_test_taxonomies'] ) ) { return array(); }
+	return array( (object) array( 'name' => 'product_cat', 'public' => true, 'labels' => (object) array( 'name' => 'Kategorier' ) ) );
+}
+$GLOBALS['wp_ai_advisor_test_taxonomies'] = false;
+$GLOBALS['wp_ai_advisor_test_terms']     = array();
+$GLOBALS['wp_ai_advisor_test_ancestors'] = array();
+function wp_get_post_terms( $id, $taxonomy, $args = array() ) {
+	return isset( $GLOBALS['wp_ai_advisor_test_terms'][ $id ] ) ? $GLOBALS['wp_ai_advisor_test_terms'][ $id ] : array();
+}
+function get_ancestors( $id, $taxonomy = '', $type = '' ) {
+	return isset( $GLOBALS['wp_ai_advisor_test_ancestors'][ $id ] ) ? $GLOBALS['wp_ai_advisor_test_ancestors'][ $id ] : array();
+}
 // phpcs:enable
 
 $root = dirname( __DIR__ ) . '/includes/';

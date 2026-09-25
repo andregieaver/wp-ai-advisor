@@ -180,6 +180,47 @@ class WP_AI_Advisor_Page_Context {
 	}
 
 	/**
+	 * Term IDs describing a post, including ancestors.
+	 *
+	 * Ancestors are included so a set aimed at "Kaffemaskiner" also covers a
+	 * product filed only under its child category.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int[]
+	 */
+	public static function term_ids( $post_id ) {
+		$post = get_post( $post_id );
+
+		if ( ! $post ) {
+			return array();
+		}
+
+		$ids = array();
+
+		foreach ( get_object_taxonomies( $post->post_type, 'objects' ) as $taxonomy ) {
+			if ( empty( $taxonomy->public ) ) {
+				continue;
+			}
+
+			$terms = wp_get_post_terms( $post->ID, $taxonomy->name, array( 'fields' => 'ids' ) );
+
+			if ( is_wp_error( $terms ) || empty( $terms ) ) {
+				continue;
+			}
+
+			foreach ( $terms as $term_id ) {
+				$ids[] = (int) $term_id;
+
+				foreach ( (array) get_ancestors( $term_id, $taxonomy->name, 'taxonomy' ) as $ancestor ) {
+					$ids[] = (int) $ancestor;
+				}
+			}
+		}
+
+		return array_values( array_unique( $ids ) );
+	}
+
+	/**
 	 * Renders the facts as the PAGE block for the prompt.
 	 *
 	 * @param int $post_id Post ID.
