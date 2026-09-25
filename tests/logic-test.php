@@ -119,6 +119,50 @@ check( 'split returns nothing for empty text', $indexer->split( "   \n\n  ", 'X'
 $single = $indexer->split( str_repeat( 'a', 5000 ), '' );
 check( 'oversized single paragraph is split', count( $single ) > 1, true );
 
+// --- Addresses in knowledge-base text --------------------------------------
+/**
+ * The URLs found in a piece of text.
+ *
+ * @param string $text Plain text.
+ * @return string[]
+ */
+function found_urls( $text ) {
+	return array_column( WP_AI_Advisor_Text::find_links( $text ), 'url' );
+}
+
+check( 'a bare domain becomes https', WP_AI_Advisor_Text::normalize_href( 'detnorskekaffehus.net' ), 'https://detnorskekaffehus.net' );
+check( 'an existing scheme is kept', WP_AI_Advisor_Text::normalize_href( 'http://example.no/side' ), 'http://example.no/side' );
+check( 'www is handled', WP_AI_Advisor_Text::normalize_href( 'www.kaffe-huset.no' ), 'https://www.kaffe-huset.no' );
+check( 'a path survives', WP_AI_Advisor_Text::normalize_href( 'kaffe-huset.no/meny' ), 'https://kaffe-huset.no/meny' );
+check( 'a trailing full stop is dropped', WP_AI_Advisor_Text::normalize_href( 'detnorskekaffehus.net.' ), 'https://detnorskekaffehus.net' );
+
+// Nothing below may become a link.
+check( 'javascript scheme refused', WP_AI_Advisor_Text::normalize_href( 'javascript:alert(1)' ), '' );
+check( 'data scheme refused', WP_AI_Advisor_Text::normalize_href( 'data:text/html,x' ), '' );
+check( 'mailto refused as a website', WP_AI_Advisor_Text::normalize_href( 'mailto:a@b.no' ), '' );
+check( 'a document name refused', WP_AI_Advisor_Text::normalize_href( 'prisliste.pdf' ), '' );
+check( 'an image name refused', WP_AI_Advisor_Text::normalize_href( 'bilde.jpg' ), '' );
+check( 'an abbreviation refused', WP_AI_Advisor_Text::normalize_href( 'f.eks' ), '' );
+check( 'a decimal refused', WP_AI_Advisor_Text::normalize_href( '1.5' ), '' );
+
+// In running Norwegian prose, where the false positives live.
+check( 'finds a domain in a sentence', found_urls( 'Du finner mer på detnorskekaffehus.net hvis du vil.' ), array( 'https://detnorskekaffehus.net' ) );
+check( 'finds a full url in a sentence', found_urls( 'Se https://www.kaffe-huset.no/meny for menyen.' ), array( 'https://www.kaffe-huset.no/meny' ) );
+check( 'a missing space after a full stop is not a domain', found_urls( 'Vi selger kaffe.Det er godt.' ), array() );
+check( 'abbreviations are left alone', found_urls( 'Vi tilbyr f.eks abonnement, bl.a til kontorer.' ), array() );
+check( 'an email is not read as a website', found_urls( 'Kontakt oss på post@kaffe-huset.no.' ), array() );
+check( 'an email beside a website keeps only the website', found_urls( 'Skriv til post@kaffe-huset.no eller se detnorskekaffehus.net' ), array( 'https://detnorskekaffehus.net' ) );
+check( 'a filename in prose stays a filename', found_urls( 'Se vedlagt prisliste.pdf for detaljer.' ), array() );
+check( 'brackets are not part of the address', found_urls( 'Les mer (detnorskekaffehus.net).' ), array( 'https://detnorskekaffehus.net' ) );
+check(
+	'duplicates collapse but paths are kept apart',
+	found_urls( 'detnorskekaffehus.net og detnorskekaffehus.net/om-oss og detnorskekaffehus.net' ),
+	array( 'https://detnorskekaffehus.net', 'https://detnorskekaffehus.net/om-oss' )
+);
+
+$labelled = WP_AI_Advisor_Text::find_links( 'Se www.detnorskekaffehus.net/kontakt' );
+check( 'the label is the host without www', $labelled[0]['label'], 'detnorskekaffehus.net' );
+
 // --- Shared text helpers ---------------------------------------------------
 check( 'tidy strips padding around line breaks', WP_AI_Advisor_Text::tidy( "  a  \n   \n\n\n  b  " ), "a\n\nb" );
 check( 'tidy normalises CRLF', WP_AI_Advisor_Text::tidy( "a\r\nb" ), "a\nb" );

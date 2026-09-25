@@ -1019,62 +1019,66 @@ msgid "Set \"grounded\" to true only when the excerpts actually support your ans
 msgstr "Sett «grounded» til true bare når utdragene faktisk støtter svaret ditt. Sett den til false når de ikke gjør det."
 
 #: includes/class-wp-ai-advisor-openai-client.php:574
-msgid "In \"links\", return up to three URLs taken verbatim from the excerpt metadata that the visitor should read next. Never write a URL that does not appear there. Write each label in the same language as your answer."
-msgstr "I «links» returnerer du opptil tre nettadresser hentet ordrett fra metadataene i utdragene, som den besøkende bør lese videre. Skriv aldri en nettadresse som ikke finnes der. Skriv hver lenketekst på samme språk som svaret ditt."
+msgid "In \"links\", return up to three URLs the visitor should read next. Each must appear in the excerpts — in the metadata or written in the text itself. Never write a URL that does not. Write each label in the same language as your answer."
+msgstr "I «links» returnerer du opptil tre nettadresser den besøkende bør lese videre. Hver av dem må finnes i utdragene — enten i metadataene eller skrevet i teksten. Skriv aldri en nettadresse som ikke gjør det. Skriv hver lenketekst på samme språk som svaret ditt."
 
 #: includes/class-wp-ai-advisor-openai-client.php:575
+msgid "A bare domain in an excerpt, such as \"example.net\", is a website address: write it as https://example.net. Keep any web or e-mail address you mention in the answer text exactly as the excerpt spells it, so it can be turned into a link."
+msgstr "Et domene alene i et utdrag, for eksempel «example.net», er en nettadresse: skriv det som https://example.net. Gjengi nett- og e-postadresser du nevner i svaret nøyaktig slik utdraget skriver dem, slik at de kan gjøres om til lenker."
+
+#: includes/class-wp-ai-advisor-openai-client.php:576
 msgid "In \"followups\", suggest up to three short questions the visitor could ask next, answerable from this site. Write them in the same language as your answer."
 msgstr "I «followups» foreslår du opptil tre korte spørsmål den besøkende kan stille videre, som kan besvares ut fra dette nettstedet. Skriv dem på samme språk som svaret ditt."
 
-#: includes/class-wp-ai-advisor-openai-client.php:576
+#: includes/class-wp-ai-advisor-openai-client.php:577
 msgid "Excerpts may be in a different language from the question. Use them anyway and translate what you need; never tell the visitor the information was in another language."
 msgstr "Utdragene kan være på et annet språk enn spørsmålet. Bruk dem likevel og oversett det du trenger; fortell aldri den besøkende at informasjonen var på et annet språk."
 
-#: includes/class-wp-ai-advisor-openai-client.php:580
+#: includes/class-wp-ai-advisor-openai-client.php:581
 msgid "If the question is not about this website, or the excerpts do not cover it, set \"grounded\" to false and say briefly that you can only help with questions about this site. Do not answer from general knowledge."
 msgstr "Hvis spørsmålet ikke handler om dette nettstedet, eller utdragene ikke dekker det, setter du «grounded» til false og sier kort at du bare kan hjelpe med spørsmål om dette nettstedet. Ikke svar ut fra generell kunnskap."
 
-#: includes/class-wp-ai-advisor-openai-client.php:623
+#: includes/class-wp-ai-advisor-openai-client.php:624
 msgid "Write for someone standing in front of a screen: short paragraphs, no preamble, no sign-off."
 msgstr "Skriv for noen som står foran en skjerm: korte avsnitt, ingen innledning, ingen avslutningshilsen."
 
-#: includes/class-wp-ai-advisor-openai-client.php:624
+#: includes/class-wp-ai-advisor-openai-client.php:625
 msgid "Markdown is rendered, so use a bullet list when listing things, and bold sparingly for names or figures. Never use headings or tables."
 msgstr "Markdown gjengis, så bruk punktliste når du lister opp noe, og fet skrift sparsomt til navn eller tall. Bruk aldri overskrifter eller tabeller."
 
-#: includes/class-wp-ai-advisor-openai-client.php:637
+#: includes/class-wp-ai-advisor-openai-client.php:638
 msgid "The visitor is reading the page described under CURRENT PAGE. Words like \"this\", \"it\", \"denne\" or \"dette\" mean that page unless they clearly mean something else."
 msgstr "Den besøkende leser siden som er beskrevet under CURRENT PAGE. Ord som «denne», «dette», «den» eller «it» viser til den siden med mindre de tydelig betyr noe annet."
 
-#: includes/class-wp-ai-advisor-openai-client.php:638
+#: includes/class-wp-ai-advisor-openai-client.php:639
 msgid "Answer about that page by default. Bring in other excerpts only to compare with it or when the question is plainly about something else."
 msgstr "Svar om den siden som standard. Trekk inn andre utdrag bare for å sammenligne med den, eller når spørsmålet tydelig handler om noe annet."
 
-#: includes/class-wp-ai-advisor-openai-client.php:639
+#: includes/class-wp-ai-advisor-openai-client.php:640
 msgid "The CURRENT PAGE facts are current and authoritative: they are read live from the site, so prefer them over any figure in an excerpt that disagrees."
 msgstr "Opplysningene under CURRENT PAGE er oppdaterte og autoritative: de leses direkte fra nettstedet, så foretrekk dem framfor tall i utdrag som sier noe annet."
 
-#: includes/class-wp-ai-advisor-openai-client.php:640
+#: includes/class-wp-ai-advisor-openai-client.php:641
 msgid "Where a price range is given, quote it as a range in the words the shop used. Do not present one end of it as the price, and do not convert or recalculate it."
 msgstr "Når et prisintervall er oppgitt, gjengi det som et intervall med butikkens egne ord. Ikke presenter den ene enden som prisen, og ikke regn det om."
 
-#: includes/class-wp-ai-advisor-openai-client.php:641
+#: includes/class-wp-ai-advisor-openai-client.php:642
 msgid "A question answered from the CURRENT PAGE facts is grounded: set \"grounded\" to true."
 msgstr "Et spørsmål som besvares ut fra opplysningene under CURRENT PAGE er forankret: sett «grounded» til true."
 
-#: includes/class-wp-ai-advisor-openai-client.php:773
+#: includes/class-wp-ai-advisor-openai-client.php:783
 msgid "OpenAI rejected the request. This usually means the chosen model does not accept how the assistant is configured."
 msgstr "OpenAI avviste forespørselen. Det betyr som regel at den valgte modellen ikke godtar måten assistenten er satt opp på."
 
-#: includes/class-wp-ai-advisor-openai-client.php:776
+#: includes/class-wp-ai-advisor-openai-client.php:786
 msgid "OpenAI rejected the configured API key."
 msgstr "OpenAI avviste API-nøkkelen som er satt opp."
 
-#: includes/class-wp-ai-advisor-openai-client.php:778
+#: includes/class-wp-ai-advisor-openai-client.php:788
 msgid "The assistant is busy right now. Please try again shortly."
 msgstr "Assistenten er opptatt akkurat nå. Prøv igjen om litt."
 
-#: includes/class-wp-ai-advisor-openai-client.php:780
+#: includes/class-wp-ai-advisor-openai-client.php:790
 msgid "The assistant is temporarily unavailable. Please try again."
 msgstr "Assistenten er midlertidig utilgjengelig. Prøv igjen."
 
@@ -1126,7 +1130,7 @@ msgstr "Tilkoblet, og %s svarte på et testspørsmål."
 msgid "No file was uploaded."
 msgstr "Ingen fil ble lastet opp."
 
-#: includes/class-wp-ai-advisor-rest-controller.php:632 includes/class-wp-ai-advisor-store.php:327
+#: includes/class-wp-ai-advisor-rest-controller.php:632 includes/class-wp-ai-advisor-store.php:328
 msgid "That note no longer exists."
 msgstr "Det notatet finnes ikke lenger."
 

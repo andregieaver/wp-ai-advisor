@@ -110,6 +110,168 @@ class WP_AI_Advisor_Text {
 	}
 
 	/**
+	 * Top-level domains recognised in text that carries no scheme.
+	 *
+	 * Without a scheme, "something.word" is ambiguous: a missing space after a
+	 * full stop looks exactly like a domain, and Norwegian prose is full of
+	 * abbreviations. Requiring a known ending keeps "kaffe.Det" out while
+	 * letting "detnorskekaffehus.net" through. Every two-letter ending is
+	 * accepted as a country code.
+	 *
+	 * @return string[]
+	 */
+	public static function known_tlds() {
+		/**
+		 * Filters the endings treated as domains in plain text.
+		 *
+		 * @param string[] $tlds Lowercase endings, without the dot.
+		 */
+		return (array) apply_filters(
+			'wp_ai_advisor_known_tlds',
+			array(
+				'com', 'net', 'org', 'info', 'biz', 'edu', 'gov', 'int',
+				'shop', 'store', 'app', 'dev', 'ai', 'cloud', 'online',
+				'site', 'tech', 'email', 'blog', 'news', 'agency', 'studio',
+				'design', 'digital', 'group', 'media', 'company', 'solutions',
+				'coffee', 'cafe', 'bar', 'restaurant', 'services',
+			)
+		);
+	}
+
+	/**
+	 * File extensions that look like domains but are not.
+	 *
+	 * @return string[]
+	 */
+	private static function file_endings() {
+		return array(
+			'pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico',
+			'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv',
+			'zip', 'rar', 'mp3', 'mp4', 'mov', 'js', 'css', 'html', 'htm',
+			'php', 'json', 'xml', 'exe', 'dmg',
+		);
+	}
+
+	/**
+	 * Turns a URL or bare domain into an absolute https address.
+	 *
+	 * A domain written on its own in a note — "detnorskekaffehus.net" — is a
+	 * website address as far as a reader is concerned, so it is treated as one.
+	 *
+	 * @param string $candidate URL, or a domain with no scheme.
+	 * @return string Absolute URL, or '' when it is not an address.
+	 */
+	public static function normalize_href( $candidate ) {
+		$candidate = trim( (string) $candidate );
+
+		// Trailing sentence punctuation is not part of the address.
+		$candidate = rtrim( $candidate, '.,;:!?)]}\'"' );
+
+		if ( '' === $candidate ) {
+			return '';
+		}
+
+		if ( preg_match( '#^https?://#i', $candidate ) ) {
+			return esc_url_raw( $candidate );
+		}
+
+		// Anything else with a scheme (mailto:, javascript:, data:) is not ours.
+		if ( preg_match( '#^[a-z][a-z0-9+.-]*:#i', $candidate ) ) {
+			return '';
+		}
+
+		$candidate = preg_replace( '#^www\.#i', 'www.', $candidate );
+
+		if ( ! self::looks_like_domain( $candidate ) ) {
+			return '';
+		}
+
+		return esc_url_raw( 'https://' . $candidate );
+	}
+
+	/**
+	 * Whether a schemeless string reads as a domain rather than as prose.
+	 *
+	 * @param string $candidate Text with no scheme.
+	 * @return bool
+	 */
+	private static function looks_like_domain( $candidate ) {
+		$host = strtok( $candidate, '/' );
+
+		if ( ! $host || ! preg_match( '#^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$#i', $host ) ) {
+			return false;
+		}
+
+		$labels = explode( '.', $host );
+		$tld    = strtolower( array_pop( $labels ) );
+		$first  = $labels[0];
+
+		// "f.eks" and "bl.a" are abbreviations, not hosts.
+		if ( mb_strlen( $first ) < 2 ) {
+			return false;
+		}
+
+		if ( in_array( $tld, self::file_endings(), true ) ) {
+			return false;
+		}
+
+		return 2 === strlen( $tld ) || in_array( $tld, self::known_tlds(), true );
+	}
+
+	/**
+	 * Finds the web addresses written in a piece of text.
+	 *
+	 * @param string $text Plain text.
+	 * @return array[] Each: label, url.
+	 */
+	public static function find_links( $text ) {
+		$text = (string) $text;
+
+		if ( '' === $text ) {
+			return array();
+		}
+
+		// Blank out e-mail addresses so their domain is not read as a website.
+		$masked = preg_replace( '#[^\s<>()\[\]]+@[^\s<>()\[\]]+#u', ' ', $text );
+
+		$pattern = '#(?:https?://[^\s<>"\'\)\]]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}(?:/[^\s<>"\'\)\]]*)?)#i';
+
+		if ( ! preg_match_all( $pattern, $masked, $matches ) ) {
+			return array();
+		}
+
+		$links = array();
+
+		foreach ( $matches[0] as $match ) {
+			$url = self::normalize_href( $match );
+
+			if ( '' === $url ) {
+				continue;
+			}
+
+			$links[ untrailingslashit( $url ) ] = array(
+				'label' => self::link_label( $url ),
+				'url'   => untrailingslashit( $url ),
+			);
+		}
+
+		return array_values( $links );
+	}
+
+	/**
+	 * A readable label for a bare address.
+	 *
+	 * @param string $url Absolute URL.
+	 * @return string
+	 */
+	private static function link_label( $url ) {
+		$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+		$host = preg_replace( '#^www\.#i', '', $host );
+
+		return $host ? $host : $url;
+	}
+
+	/**
 	 * Resolves a possibly relative href against the page URL.
 	 *
 	 * @param string $href Raw href.

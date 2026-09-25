@@ -1015,62 +1015,66 @@ msgid "Set \"grounded\" to true only when the excerpts actually support your ans
 msgstr ""
 
 #: includes/class-wp-ai-advisor-openai-client.php:574
-msgid "In \"links\", return up to three URLs taken verbatim from the excerpt metadata that the visitor should read next. Never write a URL that does not appear there. Write each label in the same language as your answer."
+msgid "In \"links\", return up to three URLs the visitor should read next. Each must appear in the excerpts — in the metadata or written in the text itself. Never write a URL that does not. Write each label in the same language as your answer."
 msgstr ""
 
 #: includes/class-wp-ai-advisor-openai-client.php:575
-msgid "In \"followups\", suggest up to three short questions the visitor could ask next, answerable from this site. Write them in the same language as your answer."
+msgid "A bare domain in an excerpt, such as \"example.net\", is a website address: write it as https://example.net. Keep any web or e-mail address you mention in the answer text exactly as the excerpt spells it, so it can be turned into a link."
 msgstr ""
 
 #: includes/class-wp-ai-advisor-openai-client.php:576
+msgid "In \"followups\", suggest up to three short questions the visitor could ask next, answerable from this site. Write them in the same language as your answer."
+msgstr ""
+
+#: includes/class-wp-ai-advisor-openai-client.php:577
 msgid "Excerpts may be in a different language from the question. Use them anyway and translate what you need; never tell the visitor the information was in another language."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:580
+#: includes/class-wp-ai-advisor-openai-client.php:581
 msgid "If the question is not about this website, or the excerpts do not cover it, set \"grounded\" to false and say briefly that you can only help with questions about this site. Do not answer from general knowledge."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:623
+#: includes/class-wp-ai-advisor-openai-client.php:624
 msgid "Write for someone standing in front of a screen: short paragraphs, no preamble, no sign-off."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:624
+#: includes/class-wp-ai-advisor-openai-client.php:625
 msgid "Markdown is rendered, so use a bullet list when listing things, and bold sparingly for names or figures. Never use headings or tables."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:637
+#: includes/class-wp-ai-advisor-openai-client.php:638
 msgid "The visitor is reading the page described under CURRENT PAGE. Words like \"this\", \"it\", \"denne\" or \"dette\" mean that page unless they clearly mean something else."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:638
+#: includes/class-wp-ai-advisor-openai-client.php:639
 msgid "Answer about that page by default. Bring in other excerpts only to compare with it or when the question is plainly about something else."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:639
+#: includes/class-wp-ai-advisor-openai-client.php:640
 msgid "The CURRENT PAGE facts are current and authoritative: they are read live from the site, so prefer them over any figure in an excerpt that disagrees."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:640
+#: includes/class-wp-ai-advisor-openai-client.php:641
 msgid "Where a price range is given, quote it as a range in the words the shop used. Do not present one end of it as the price, and do not convert or recalculate it."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:641
+#: includes/class-wp-ai-advisor-openai-client.php:642
 msgid "A question answered from the CURRENT PAGE facts is grounded: set \"grounded\" to true."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:773
+#: includes/class-wp-ai-advisor-openai-client.php:783
 msgid "OpenAI rejected the request. This usually means the chosen model does not accept how the assistant is configured."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:776
+#: includes/class-wp-ai-advisor-openai-client.php:786
 msgid "OpenAI rejected the configured API key."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:778
+#: includes/class-wp-ai-advisor-openai-client.php:788
 msgid "The assistant is busy right now. Please try again shortly."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-openai-client.php:780
+#: includes/class-wp-ai-advisor-openai-client.php:790
 msgid "The assistant is temporarily unavailable. Please try again."
 msgstr ""
 
@@ -1122,7 +1126,7 @@ msgstr ""
 msgid "No file was uploaded."
 msgstr ""
 
-#: includes/class-wp-ai-advisor-rest-controller.php:632 includes/class-wp-ai-advisor-store.php:327
+#: includes/class-wp-ai-advisor-rest-controller.php:632 includes/class-wp-ai-advisor-store.php:328
 msgid "That note no longer exists."
 msgstr ""
 

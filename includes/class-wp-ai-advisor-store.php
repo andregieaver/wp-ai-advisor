@@ -263,7 +263,7 @@ class WP_AI_Advisor_Store {
 			'url_hash'     => $hash,
 			'title'        => $title,
 			'content'      => $content,
-			'links'        => '',
+			'links'        => wp_json_encode( WP_AI_Advisor_Text::find_links( $content ) ),
 			'status'       => self::STATUS_FETCHED,
 			'message'      => '',
 			'content_hash' => md5( $content ),
@@ -310,6 +310,7 @@ class WP_AI_Advisor_Store {
 		$row = array(
 			'title'        => $title,
 			'content'      => $content,
+			'links'        => wp_json_encode( WP_AI_Advisor_Text::find_links( $content ) ),
 			'status'       => self::STATUS_FETCHED,
 			'message'      => '',
 			'content_hash' => md5( $content ),
@@ -338,7 +339,6 @@ class WP_AI_Advisor_Store {
 		$row['type']     = self::TYPE_NOTE;
 		$row['url']      = '';
 		$row['url_hash'] = md5( 'note:' . wp_generate_uuid4() );
-		$row['links']    = '';
 		$row['depth']    = 0;
 		$row['ref']      = 0;
 

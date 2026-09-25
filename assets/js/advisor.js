@@ -38,6 +38,110 @@
 	 */
 	var INLINE = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|_[^_\n]+_|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/;
 
+	/**
+	 * Endings treated as domains when the text carries no scheme.
+	 *
+	 * Mirrors WP_AI_Advisor_Text::known_tlds(): without a scheme, a missing
+	 * space after a full stop looks exactly like a domain, so an unknown ending
+	 * is left as prose. Every two-letter ending is accepted as a country code.
+	 */
+	var TLDS = [
+		'com', 'net', 'org', 'info', 'biz', 'edu', 'gov', 'int',
+		'shop', 'store', 'app', 'dev', 'ai', 'cloud', 'online',
+		'site', 'tech', 'email', 'blog', 'news', 'agency', 'studio',
+		'design', 'digital', 'group', 'media', 'company', 'solutions',
+		'coffee', 'cafe', 'bar', 'restaurant', 'services'
+	];
+
+	var FILE_ENDINGS = [
+		'pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico',
+		'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv',
+		'zip', 'rar', 'mp3', 'mp4', 'mov', 'js', 'css', 'html', 'htm',
+		'php', 'json', 'xml', 'exe', 'dmg'
+	];
+
+	// Addresses written in running text: a full URL, a bare domain, or an email.
+	var AUTOLINK = /(https?:\/\/[^\s<>"')\]]+|[^\s<>()[\]]+@[a-z0-9.-]+\.[a-z]{2,24}|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}(?:\/[^\s<>"')\]]*)?)/i;
+
+	/**
+	 * Whether a schemeless string reads as a domain rather than as prose.
+	 */
+	function looksLikeDomain( candidate ) {
+		var host = candidate.split( '/' )[0];
+
+		if ( ! /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i.test( host ) ) {
+			return false;
+		}
+
+		var labels = host.split( '.' );
+		var tld = labels.pop().toLowerCase();
+
+		// "f.eks" and "bl.a" are abbreviations, not hosts.
+		if ( labels[0].length < 2 ) {
+			return false;
+		}
+
+		if ( FILE_ENDINGS.indexOf( tld ) !== -1 ) {
+			return false;
+		}
+
+		return 2 === tld.length || TLDS.indexOf( tld ) !== -1;
+	}
+
+	/**
+	 * Turns an address found in running text into an href, or returns null.
+	 */
+	function autoHref( token ) {
+		var trimmed = token.replace( /[.,;:!?)\]}'"]+$/, '' );
+
+		if ( ! trimmed ) {
+			return null;
+		}
+
+		if ( /^https?:\/\//i.test( trimmed ) ) {
+			return { href: trimmed, label: trimmed, tail: token.slice( trimmed.length ) };
+		}
+
+		if ( /^[^\s@]+@[a-z0-9.-]+\.[a-z]{2,24}$/i.test( trimmed ) ) {
+			return { href: 'mailto:' + trimmed, label: trimmed, tail: token.slice( trimmed.length ) };
+		}
+
+		if ( looksLikeDomain( trimmed ) ) {
+			return { href: 'https://' + trimmed, label: trimmed, tail: token.slice( trimmed.length ) };
+		}
+
+		return null;
+	}
+
+	/**
+	 * Appends text, turning any address inside it into a link.
+	 */
+	function appendAutolinked( text, parent ) {
+		String( text ).split( AUTOLINK ).forEach( function ( part ) {
+			if ( ! part ) {
+				return;
+			}
+
+			var found = AUTOLINK.test( part ) ? autoHref( part ) : null;
+
+			if ( ! found ) {
+				parent.appendChild( document.createTextNode( part ) );
+
+				return;
+			}
+
+			var anchor = el( 'a', null, found.label );
+
+			anchor.href = found.href;
+			anchor.rel = 'noopener';
+			parent.appendChild( anchor );
+
+			if ( found.tail ) {
+				parent.appendChild( document.createTextNode( found.tail ) );
+			}
+		} );
+	}
+
 	function safeHref( url ) {
 		var trimmed = String( url ).trim();
 
@@ -93,7 +197,7 @@
 				return;
 			}
 
-			parent.appendChild( document.createTextNode( part ) );
+			appendAutolinked( part, parent );
 		} );
 	}
 

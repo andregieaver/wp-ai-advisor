@@ -141,5 +141,53 @@ box = new Node( 'div' );
 global.__renderMarkdown( '- a\n- b', box );
 check( 'list answer is marked rich', box.className, 'is-rich' );
 
+// --- Autolinking addresses from the knowledge base -------------------------
+check( 'a bare domain becomes a link',
+	render( 'Se detnorskekaffehus.net for mer.' ),
+	'<p>Se <a href="https://detnorskekaffehus.net" rel="noopener">detnorskekaffehus.net</a> for mer.</p>' );
+
+check( 'a full url becomes a link',
+	render( 'Se https://kaffe-huset.no/meny her.' ),
+	'<p>Se <a href="https://kaffe-huset.no/meny" rel="noopener">https://kaffe-huset.no/meny</a> her.</p>' );
+
+check( 'a www domain becomes a link',
+	render( 'www.kaffe-huset.no' ),
+	'<p><a href="https://www.kaffe-huset.no" rel="noopener">www.kaffe-huset.no</a></p>' );
+
+check( 'an email becomes a mailto link',
+	render( 'Skriv til post@kaffe-huset.no.' ),
+	'<p>Skriv til <a href="mailto:post@kaffe-huset.no" rel="noopener">post@kaffe-huset.no</a>.</p>' );
+
+check( 'a trailing full stop stays outside the link',
+	render( 'Se detnorskekaffehus.net.' ),
+	'<p>Se <a href="https://detnorskekaffehus.net" rel="noopener">detnorskekaffehus.net</a>.</p>' );
+
+check( 'a domain inside a bullet is linked',
+	render( '- Nettbutikk: detnorskekaffehus.net' ),
+	'<ul><li>Nettbutikk: <a href="https://detnorskekaffehus.net" rel="noopener">detnorskekaffehus.net</a></li></ul>' );
+
+check( 'a missing space after a full stop is not a link',
+	render( 'Vi selger kaffe.Det er godt.' ),
+	'<p>Vi selger kaffe.Det er godt.</p>' );
+
+check( 'abbreviations are not linked',
+	render( 'Vi tilbyr f.eks abonnement, bl.a til kontorer.' ),
+	'<p>Vi tilbyr f.eks abonnement, bl.a til kontorer.</p>' );
+
+check( 'a filename is not linked',
+	render( 'Se prisliste.pdf for detaljer.' ),
+	'<p>Se prisliste.pdf for detaljer.</p>' );
+
+check( 'a decimal number is not linked',
+	render( 'Den tar 1.5 liter.' ),
+	'<p>Den tar 1.5 liter.</p>' );
+
+var explicit = render( '[menyen](https://kaffe-huset.no/meny)' );
+check( 'an explicit markdown link is not doubled', ( explicit.match( /<a /g ) || [] ).length, 1 );
+
+check( 'bold text around a domain still works',
+	render( '**Nettbutikk**: detnorskekaffehus.net' ),
+	'<p><strong>Nettbutikk</strong>: <a href="https://detnorskekaffehus.net" rel="noopener">detnorskekaffehus.net</a></p>' );
+
 console.log( '\n' + pass + ' passed, ' + fail + ' failed' );
 process.exit( fail ? 1 : 0 );

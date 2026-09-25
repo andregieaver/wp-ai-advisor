@@ -571,7 +571,8 @@ class WP_AI_Advisor_OpenAI_Client {
 			__( 'Use only the SITE CONTENT excerpts below. They are the only source you may draw facts from.', 'wp-ai-advisor' ),
 			__( 'Never invent prices, opening hours, addresses, phone numbers, availability or product details. If an excerpt does not state it, you do not know it.', 'wp-ai-advisor' ),
 			__( 'Set "grounded" to true only when the excerpts actually support your answer. Set it to false when they do not.', 'wp-ai-advisor' ),
-			__( 'In "links", return up to three URLs taken verbatim from the excerpt metadata that the visitor should read next. Never write a URL that does not appear there. Write each label in the same language as your answer.', 'wp-ai-advisor' ),
+			__( 'In "links", return up to three URLs the visitor should read next. Each must appear in the excerpts — in the metadata or written in the text itself. Never write a URL that does not. Write each label in the same language as your answer.', 'wp-ai-advisor' ),
+			__( 'A bare domain in an excerpt, such as "example.net", is a website address: write it as https://example.net. Keep any web or e-mail address you mention in the answer text exactly as the excerpt spells it, so it can be turned into a link.', 'wp-ai-advisor' ),
 			__( 'In "followups", suggest up to three short questions the visitor could ask next, answerable from this site. Write them in the same language as your answer.', 'wp-ai-advisor' ),
 			__( 'Excerpts may be in a different language from the question. Use them anyway and translate what you need; never tell the visitor the information was in another language.', 'wp-ai-advisor' ),
 		);
@@ -735,6 +736,15 @@ class WP_AI_Advisor_OpenAI_Client {
 					}
 				}
 			}
+
+			// An address written inside a note or a document is as real as one
+			// in a page's markup. Read from the passage itself, so a note added
+			// before this existed does not need re-indexing.
+			if ( ! empty( $chunk['content'] ) ) {
+				foreach ( WP_AI_Advisor_Text::find_links( $chunk['content'] ) as $link ) {
+					$allowed[ untrailingslashit( $link['url'] ) ] = true;
+				}
+			}
 		}
 
 		$clean = array();
@@ -744,7 +754,7 @@ class WP_AI_Advisor_OpenAI_Client {
 				continue;
 			}
 
-			$url = untrailingslashit( esc_url_raw( (string) $link['url'] ) );
+			$url = untrailingslashit( WP_AI_Advisor_Text::normalize_href( (string) $link['url'] ) );
 
 			if ( ! $url || ! isset( $allowed[ $url ] ) ) {
 				continue;

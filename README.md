@@ -94,6 +94,19 @@ The settings screen shows a live example of the field it found, so a wrong field
 
 Use the `wp_ai_advisor_page_facts` filter to expose more fields — stock, lead time, SKU.
 
+## Addresses become links
+
+An address written anywhere in the knowledge base — a note, an uploaded document, a page — is clickable in the conversation. A bare domain counts: `detnorskekaffehus.net` is treated as `https://detnorskekaffehus.net`, and an e-mail address becomes a `mailto:` link.
+
+Without a scheme, "something.word" is ambiguous — a missing space after a full stop looks exactly like a domain, and Norwegian prose is full of abbreviations. So a schemeless address is only linked when its ending is a two-letter country code or one of a known list (`wp_ai_advisor_known_tlds` filters it), its first label is at least two characters, and its ending is not a file extension. That keeps `kaffe.Det`, `f.eks`, `bl.a`, `prisliste.pdf` and `1.5` as plain text while linking the real thing.
+
+Addresses are picked up in two independent places, so neither has to be right on its own:
+
+- **In the answer text**, by the renderer. Works whatever the model writes, and needs no re-indexing.
+- **As link chips**, by allowing any address found in a retrieved passage through the URL verification. Notes and documents also record their addresses when saved, so an address survives into the chips with a readable label.
+
+Only `http`, `https` and `mailto` are ever produced; `javascript:` and `data:` are refused at both layers.
+
 ## Suggested questions
 
 The buttons shown before the visitor types anything, all editable under **Settings → AI Advisor → Suggested questions**. The most specific set that fits wins:
@@ -276,11 +289,11 @@ Two custom tables, `{prefix}aiadv_sources` and `{prefix}aiadv_chunks`, created o
 ## Tests
 
 ```bash
-php tests/logic-test.php     # 173 checks
-node tests/markdown-test.js  # 19 checks
+php tests/logic-test.php     # 195 checks
+node tests/markdown-test.js  # 31 checks
 ```
 
-The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, which post types the widget adopts, chat-model filtering, which API failures degrade rather than surface, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
+The PHP suite covers URL normalisation, vector maths, HTML and document text extraction, link resolution, chunking, the expression evaluator (including shell calls, statement separators, division by zero and runaway exponents, all of which must be refused), page-context validation (drafts, private, password-protected and non-public types must all be refused), settings migration, question-set matching, which post types the widget adopts, chat-model filtering, which API failures degrade rather than surface, address detection in prose, language detection, settings sanitisation, and translation coverage — the last of these fails if any extracted string lacks a Norwegian translation or loses a `printf` placeholder. It runs against stubbed WordPress functions and does not cover anything needing a database or a live API. The JS suite builds a minimal DOM and checks the Markdown renderer's output alongside its safety property: `javascript:` and `data:` URLs never become anchors.
 
 ## License
 
